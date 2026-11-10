@@ -60,7 +60,8 @@ class LessonFlow(TestCase):
         print("order", titles("?ordering=title"))
         a = Author.objects.get(name="Jose Rizal").id
         print("author", titles(f"?author={a}&ordering=published_year"))
-        print("page2", titles("?page=2"))
+        # PAGE_SIZE is 12 now, so the seed data fits on one page and page 2 does not exist
+        self.assertEqual(c.get("/api/books/?page=2").status_code, 404)
         r = c.get("/api/authors/?country=Japan"); print(r.json()["results"][0])
         # browsable API with filters renders
         r = c.get("/api/books/", HTTP_ACCEPT="text/html"); self.assertEqual(r.status_code, 200)
@@ -76,3 +77,63 @@ class LessonFlow(TestCase):
         r = c.post("/api/reviews/", {"book": k["id"], "reviewer_name": "C", "rating": 6}, format="json", **self.auth)
         print(r.status_code, r.json())
         top = c.get("/api/books/?ordering=-avg_rating").json()["results"][0]["title"]; print("top", top); self.assertEqual(top, "Kokoro")
+
+    def test_anonymous_can_review_but_not_edit(self):
+        c = self.c
+        k = c.get("/api/books/?search=kokoro").json()["results"][0]
+        r = c.post("/api/reviews/", {"book": k["id"], "reviewer_name": "Visitor", "rating": 5}, format="json")
+        self.assertEqual(r.status_code, 201, r.json())
+        rid = r.json()["id"]
+        self.assertEqual(c.delete(f"/api/reviews/{rid}/").status_code, 403)
+        r = c.patch(f"/api/reviews/{rid}/", {"rating": 1}, format="json")
+        self.assertEqual(r.status_code, 403)
+        # books stay protected for anonymous writes
+        r = c.post("/api/books/", {"title": "X", "author": self.s.id, "published_year": 1900}, format="json")
+        self.assertEqual(r.status_code, 403)
+
+    def test_stats_without_reviews(self):
+        r = self.c.get("/api/stats/")  # public, no login needed
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        self.assertEqual((d["books"], d["in_stock"], d["checked_out"], d["authors"]), (5, 4, 1, 3))
+        self.assertEqual(d["reviews"], 0)
+        self.assertIsNone(d["average_rating"])
+        self.assertIsNone(d["top_rated"])
+        self.assertEqual(d["by_country"], [{"country": "Japan", "count": 3}, {"country": "Philippines", "count": 2}])
+        self.assertEqual(d["by_genre"], [])
+
+    def test_stats_with_reviews_and_genres(self):
+        kokoro = Book.objects.get(title="Kokoro")
+        kafka = Book.objects.get(title="Kafka on the Shore")
+        for book, rating in ((kokoro, 5), (kokoro, 4), (kafka, 4)):
+            self.c.post("/api/reviews/", {"book": book.id, "reviewer_name": "Visitor", "rating": rating}, format="json")
+        Book.objects.filter(title__in=["Kokoro", "Kafka on the Shore"]).update(genre="Novel")
+        d = self.c.get("/api/stats/").json()
+        self.assertEqual(d["reviews"], 3)
+        self.assertEqual(d["average_rating"], 4.3)
+        self.assertEqual(d["top_rated"]["title"], "Kokoro")
+        self.assertEqual(d["top_rated"]["average_rating"], 4.5)
+        self.assertEqual(d["top_rated"]["review_count"], 2)
+        self.assertEqual(d["by_genre"], [{"genre": "Novel", "count": 2}])
+
+    def test_new_book_fields_and_filters(self):
+        kokoro = Book.objects.get(title="Kokoro")
+        body = {
+            "genre": "Novel", "pages": 248, "description": "A student and his Sensei.",
+            "cover_url": "https://example.com/kokoro.jpg",
+        }
+        r = self.c.patch(f"/api/books/{kokoro.id}/", body, format="json", **self.auth)
+        self.assertEqual(r.status_code, 200, r.json())
+        self.assertEqual(r.json()["genre"], "Novel")
+        self.assertEqual(r.json()["pages"], 248)
+        self.assertEqual(self.c.get("/api/books/?genre=Novel").json()["count"], 1)
+        self.assertEqual(self.c.get("/api/books/?search=novel").json()["count"], 1)
+        self.assertEqual(self.c.get("/api/books/?author__country=Philippines").json()["count"], 2)
+        # bad values are rejected
+        r = self.c.patch(f"/api/books/{kokoro.id}/", {"pages": 0}, format="json", **self.auth)
+        self.assertEqual(r.status_code, 400)
+        r = self.c.patch(f"/api/books/{kokoro.id}/", {"cover_url": "not a url"}, format="json", **self.auth)
+        self.assertEqual(r.status_code, 400)
+        # the new fields are optional
+        r = self.c.post("/api/books/", {"title": "Plain", "author": self.s.id, "published_year": 1900}, format="json", **self.auth)
+        self.assertEqual(r.status_code, 201, r.json())

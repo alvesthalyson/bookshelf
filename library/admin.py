@@ -10,8 +10,9 @@ class AuthorAdmin(admin.ModelAdmin):
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ["title", "author", "published_year", "in_stock"]
-    list_filter = ["in_stock"]
+    list_display = ["title", "author", "genre", "published_year", "pages", "in_stock"]
+    list_filter = ["in_stock", "genre"]
+    search_fields = ["title", "author__name"]
 
 
 @admin.register(Review)

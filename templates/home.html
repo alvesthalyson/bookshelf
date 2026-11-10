@@ -1,17 +1,947 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <title>Bookshelf API</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bookshelf</title>
+    {% verbatim %}
+    <script>
+        /* Set the theme before the first paint so the page never flashes the wrong colors.
+           ?theme=light or ?theme=dark forces a theme without saving it. */
+        (function () {
+            var theme = new URLSearchParams(location.search).get('theme');
+            if (theme !== 'light' && theme !== 'dark') {
+                try { theme = localStorage.getItem('bookshelf-theme'); } catch (e) {}
+            }
+            if (theme !== 'light' && theme !== 'dark') {
+                theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    {% endverbatim %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 100px; background: #f4f4f4; }
-        h1 { color: #333; }
-        a { color: #007bff; text-decoration: none; }
+        :root {
+            --display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
+            --body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+            --radius: 6px;
+        }
+
+        /* Light: quiet paper and indigo ink */
+        :root[data-theme="light"] {
+            --bg: #f7f8fa;
+            --surface: #ffffff;
+            --ink: #1b2235;
+            --muted: #5a627a;
+            --line: #d9dde6;
+            --accent: #2b3a8c;
+            --accent-ink: #ffffff;
+            --star: #b9770e;
+            --glow: transparent;
+            --backdrop: rgba(27, 34, 53, 0.35);
+            --cover-bg: 22% 91%;
+            --cover-ink: 45% 20%;
+            --cover-spine: 38% 34%;
+            --cover-shadow: none;
+            --grain: 0;
+        }
+
+        /* Dark: a dim cinema with one warm projector light */
+        :root[data-theme="dark"] {
+            --bg: #0b0d13;
+            --surface: #131724;
+            --ink: #ece7dc;
+            --muted: #9aa0b0;
+            --line: #272c3d;
+            --accent: #e8b04b;
+            --accent-ink: #1a1305;
+            --star: #e8b04b;
+            --glow: rgba(232, 176, 75, 0.26);
+            --backdrop: rgba(0, 0, 0, 0.65);
+            --cover-bg: 28% 15%;
+            --cover-ink: 30% 86%;
+            --cover-spine: 50% 42%;
+            --cover-shadow: 0 22px 36px -20px #000;
+            --grain: 0.07;
+        }
+
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+
+        html { color-scheme: light dark; }
+        :root[data-theme="light"] { color-scheme: light; }
+        :root[data-theme="dark"] { color-scheme: dark; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--body);
+            font-size: 1rem;
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Projector light behind the hero, only visible in the dark theme */
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 460px;
+            z-index: -1;
+            pointer-events: none;
+            background: radial-gradient(55% 100% at 22% 0%, var(--glow), transparent 70%);
+            animation: light-on 1.4s ease-out both;
+        }
+
+        /* Film grain, only visible in the dark theme */
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: var(--grain);
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+            z-index: 50;
+        }
+
+        a { color: inherit; }
+        button, input, select, textarea { font: inherit; color: inherit; }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        .wrap { width: min(1120px, 100% - 40px); margin-inline: auto; }
+
+        /* Top bar */
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 0;
+        }
+        .top .brand { font-family: var(--display); font-weight: 800; font-size: 1.15rem; text-decoration: none; }
+        .theme-toggle {
+            background: transparent;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 6px 16px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .theme-toggle:hover { border-color: var(--accent); }
+
+        /* Hero */
+        .hero {
+            position: relative;
+            padding: clamp(40px, 9vw, 96px) 0 clamp(28px, 5vw, 48px);
+        }
+        @keyframes light-on { from { opacity: 0; } to { opacity: 1; } }
+
+        .hero h1 {
+            position: relative;
+            margin: 0;
+            font-family: var(--display);
+            font-weight: 800;
+            font-size: clamp(3.2rem, 11vw, 7rem);
+            line-height: 1;
+            letter-spacing: -0.02em;
+        }
+        .hero p {
+            position: relative;
+            margin: 18px 0 0;
+            max-width: 46ch;
+            color: var(--muted);
+            font-size: 1.1rem;
+        }
+
+        /* Collection overview */
+        .stats {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.2fr);
+            gap: 36px;
+            padding: 8px 0 36px;
+        }
+        .stats h2 { margin: 0 0 12px; font-family: var(--display); font-size: 1.15rem; }
+        .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; margin: 0; }
+        .figures dt { color: var(--muted); font-size: 0.9rem; }
+        .figures dd { margin: 0; font-family: var(--display); font-weight: 800; font-size: 2.4rem; line-height: 1.1; }
+        .figures dd.small { font-size: 1.4rem; color: var(--muted); }
+
+        .top-book {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            width: 100%;
+            padding: 0;
+            border: 0;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+        }
+        .top-book .cover { width: 72px; flex: none; padding: 8px 6px 6px 16px; aspect-ratio: 2 / 3; }
+        .top-book .cover::before { width: 7px; }
+        .top-book .cover .c-title { font-size: 0.72rem; -webkit-line-clamp: 4; overflow-wrap: anywhere; }
+        .top-book .cover .c-author { display: none; }
+        .top-book:hover .cover { transform: none; }
+        .top-book .t-title { font-family: var(--display); font-weight: 800; font-size: 1.25rem; line-height: 1.2; }
+        .top-book .t-sub { color: var(--muted); font-size: 0.9rem; }
+
+        .bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+        .bar {
+            display: grid;
+            grid-template-columns: minmax(70px, 110px) 1fr auto;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 4px 6px;
+            margin-left: -6px;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            background: none;
+            text-align: left;
+            cursor: pointer;
+        }
+        .bar:hover { border-color: var(--line); }
+        .bar .b-track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+        .bar .b-fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+        .bar .b-count { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .bar[aria-pressed="true"] { border-color: var(--accent); font-weight: 700; }
+        .bars.has-pick .bar[aria-pressed="false"] { opacity: 0.55; }
+        .hint { margin: 10px 0 0; color: var(--muted); font-size: 0.85rem; }
+
+        @media (max-width: 860px) {
+            .stats { grid-template-columns: 1fr; gap: 28px; }
+        }
+
+        /* Controls */
+        .tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            padding: 16px 0;
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+        .field { display: flex; flex-direction: column; gap: 4px; }
+        .field span { font-size: 0.85rem; color: var(--muted); }
+        .field.grow { flex: 1 1 240px; }
+        input[type="search"], input[type="text"], select, textarea {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 9px 12px;
+        }
+        input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.8; }
+        .check { display: flex; align-items: center; gap: 8px; padding-top: 22px; cursor: pointer; }
+        .check input { accent-color: var(--accent); width: 18px; height: 18px; }
+
+        .status {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 16px;
+            padding: 18px 0 8px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        /* Shelf */
+        .shelf {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+            gap: 34px 22px;
+            padding: 16px 0 24px;
+            transition: opacity 0.2s;
+        }
+        .shelf[aria-busy="true"] { opacity: 0.45; }
+
+        .book {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 0;
+            border: 0;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .cover {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            aspect-ratio: 2 / 3;
+            padding: 16px 14px 14px 26px;
+            border: 1px solid var(--line);
+            border-radius: 2px 5px 5px 2px;
+            background: hsl(var(--h) var(--cover-bg));
+            color: hsl(var(--h) var(--cover-ink));
+            box-shadow: var(--cover-shadow);
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .cover::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 12px;
+            background: hsl(var(--h) var(--cover-spine));
+        }
+        .book:hover .cover { transform: translateY(-4px); }
+        .book:focus-visible { outline-offset: 6px; }
+
+        .cover .c-title {
+            font-family: var(--display);
+            font-weight: 800;
+            font-size: clamp(1.1rem, 2.2vw, 1.4rem);
+            line-height: 1.2;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .cover .c-author { font-size: 0.82rem; opacity: 0.85; }
+        .book.is-out .cover { filter: saturate(0.35); }
+        .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .cover.has-img .c-title, .cover.has-img .c-author { visibility: hidden; }
+
+        .book-meta { display: flex; flex-direction: column; gap: 2px; font-size: 0.9rem; }
+        .stars { color: var(--star); letter-spacing: 1px; }
+        .book-meta .sub { color: var(--muted); font-size: 0.85rem; }
+
+        /* Empty and error */
+        .notice {
+            grid-column: 1 / -1;
+            padding: 48px 0;
+            max-width: 46ch;
+        }
+        .notice h2 { margin: 0 0 6px; font-family: var(--display); font-size: 1.5rem; }
+        .notice p { margin: 0 0 16px; color: var(--muted); }
+
+        /* Buttons */
+        .btn {
+            background: var(--accent);
+            color: var(--accent-ink);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 9px 18px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 500; }
+        .btn.ghost:hover:not(:disabled) { border-color: var(--accent); }
+
+        .pager {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 8px 0 56px;
+            color: var(--muted);
+        }
+        .pager[hidden] { display: none; }
+
+        footer {
+            padding: 24px 0 40px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 0.9rem;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* Detail panel */
+        dialog#detail {
+            position: fixed;
+            inset: 0 0 0 auto;
+            margin: 0;
+            width: min(480px, 100%);
+            height: 100dvh;
+            max-height: none;
+            padding: 0;
+            border: 0;
+            border-left: 1px solid var(--line);
+            background: var(--surface);
+            color: var(--ink);
+            overflow-y: auto;
+        }
+        dialog#detail[open] { animation: panel-in 0.2s ease-out; }
+        dialog#detail::backdrop { background: var(--backdrop); }
+        @keyframes panel-in { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+        .panel { padding: 28px 28px 40px; }
+        .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .panel h2 { margin: 0; font-family: var(--display); font-size: 2rem; line-height: 1.15; }
+        .panel .by { margin: 6px 0 0; color: var(--muted); }
+        .facts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 18px 0 0; padding: 0; list-style: none; font-size: 0.95rem; }
+        .facts li { color: var(--muted); }
+        .desc { margin: 18px 0 0; max-width: 60ch; overflow-wrap: anywhere; }
+        .summary { margin: 22px 0 0; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+        .summary .big { font-family: var(--display); font-weight: 800; font-size: 2.2rem; line-height: 1; margin-right: 10px; }
+
+        .panel h3 { margin: 28px 0 10px; font-family: var(--display); font-size: 1.25rem; }
+        .reviews { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+        .reviews li { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+        .reviews .who { display: flex; justify-content: space-between; gap: 12px; font-size: 0.95rem; }
+        .reviews .when { color: var(--muted); font-size: 0.85rem; }
+        .reviews p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .muted { color: var(--muted); }
+
+        form.review { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
+        fieldset { border: 0; margin: 0; padding: 0; }
+        legend { padding: 0; margin-bottom: 4px; font-size: 0.85rem; color: var(--muted); }
+        textarea { min-height: 96px; resize: vertical; }
+
+        .rate { display: inline-flex; flex-direction: row-reverse; justify-content: flex-end; }
+        .rate { position: relative; }
+        .rate input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .rate label { font-size: 1.9rem; line-height: 1; padding: 0 3px; color: var(--muted); opacity: 0.4; cursor: pointer; }
+        .rate input:checked ~ label,
+        .rate label:hover,
+        .rate label:hover ~ label { color: var(--star); opacity: 1; }
+        .rate input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+        .msg { min-height: 1.4em; font-size: 0.95rem; }
+        .msg.error { color: #c0392b; }
+        :root[data-theme="dark"] .msg.error { color: #ff8a7a; }
+        .msg.ok { color: var(--accent); }
+        :root[data-theme="light"] .msg.ok { color: #1e7a46; }
+
+        @media (max-width: 520px) {
+            .status { flex-direction: column; gap: 2px; }
+            .panel { padding: 22px 18px 36px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
     </style>
 </head>
 <body>
-    <h1>📚 Welcome to Bookshelf API!</h1>
-    <p>Your Django project is running perfectly.</p>
-    <a href="/api/">Go to API</a> | <a href="/admin/">Go to Admin</a>
+    <div class="wrap">
+        <header class="top">
+            <a class="brand" href="/">Bookshelf</a>
+            <button class="theme-toggle" id="themeToggle" type="button">Dark theme</button>
+        </header>
+
+        <section class="hero">
+            <h1>Bookshelf</h1>
+            <p>Search the collection, see what is in stock, and leave a review for the books you have read.</p>
+        </section>
+
+        <section class="stats" id="stats" aria-label="Collection overview" hidden>
+            <dl class="figures">
+                <div><dt>Books</dt><dd id="sBooks"></dd></div>
+                <div><dt>In stock</dt><dd id="sStock"></dd></div>
+                <div><dt>Reviews</dt><dd id="sReviews"></dd></div>
+                <div><dt>Average rating</dt><dd id="sAvg"></dd></div>
+            </dl>
+            <div>
+                <h2>Most loved</h2>
+                <div id="sTop"></div>
+            </div>
+            <div>
+                <h2>Books by country</h2>
+                <ul class="bars" id="sCountries"></ul>
+                <p class="hint" id="sHint">Select a country to filter the shelf.</p>
+            </div>
+        </section>
+
+        <form class="tools" id="tools" role="search" autocomplete="off">
+            <label class="field grow">
+                <span>Search by title or author</span>
+                <input type="search" id="search" placeholder="Try Murakami or Kokoro">
+            </label>
+            <label class="field">
+                <span>Author</span>
+                <select id="author"><option value="">All authors</option></select>
+            </label>
+            <label class="field" id="genreField" hidden>
+                <span>Genre</span>
+                <select id="genre"><option value="">All genres</option></select>
+            </label>
+            <label class="field">
+                <span>Sort by</span>
+                <select id="ordering">
+                    <option value="-published_year">Newest first</option>
+                    <option value="published_year">Oldest first</option>
+                    <option value="title">Title A to Z</option>
+                    <option value="-avg_rating">Best rated</option>
+                </select>
+            </label>
+            <label class="check"><input type="checkbox" id="inStock"> In stock only</label>
+        </form>
+
+        <div class="status" aria-live="polite">
+            <span id="count">Loading books</span>
+            <span id="pageInfo"></span>
+        </div>
+
+        <main class="shelf" id="shelf" aria-busy="true"></main>
+
+        <nav class="pager" id="pager" aria-label="Pages" hidden>
+            <button class="btn ghost" id="prev" type="button">Previous</button>
+            <span id="pageLabel"></span>
+            <button class="btn ghost" id="next" type="button">Next</button>
+        </nav>
+
+        <footer>
+            <a href="/api/">Browse the API</a>
+            <a href="/admin/">Admin</a>
+        </footer>
+    </div>
+
+    <dialog id="detail" aria-labelledby="dTitle">
+        <div class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2 id="dTitle"></h2>
+                    <p class="by" id="dAuthor"></p>
+                </div>
+                <button class="btn ghost" id="dClose" type="button">Close</button>
+            </div>
+            <ul class="facts" id="dFacts"></ul>
+            <p class="desc" id="dDesc" hidden></p>
+            <div class="summary" id="dSummary"></div>
+
+            <h3>Reviews</h3>
+            <ul class="reviews" id="dReviews"></ul>
+            <p class="muted" id="dMore" hidden></p>
+
+            <h3>Write a review</h3>
+            <form class="review" id="reviewForm" novalidate>
+                <label class="field">
+                    <span>Your name</span>
+                    <input type="text" id="rName" name="reviewer_name" maxlength="80" required>
+                </label>
+                <fieldset>
+                    <legend>Your rating</legend>
+                    <div class="rate" id="rRate">
+                        <input type="radio" name="rating" id="r5" value="5"><label for="r5" title="5 stars">★</label>
+                        <input type="radio" name="rating" id="r4" value="4"><label for="r4" title="4 stars">★</label>
+                        <input type="radio" name="rating" id="r3" value="3"><label for="r3" title="3 stars">★</label>
+                        <input type="radio" name="rating" id="r2" value="2"><label for="r2" title="2 stars">★</label>
+                        <input type="radio" name="rating" id="r1" value="1"><label for="r1" title="1 star">★</label>
+                    </div>
+                </fieldset>
+                <label class="field">
+                    <span>Comment (optional)</span>
+                    <textarea id="rComment" name="comment"></textarea>
+                </label>
+                <div class="msg" id="rMsg" role="status"></div>
+                <div><button class="btn" id="rSubmit" type="submit">Post review</button></div>
+            </form>
+        </div>
+    </dialog>
+
+    {% verbatim %}
+    <script>
+    (function () {
+        'use strict';
+
+        var PAGE_SIZE = 12; // keep in sync with PAGE_SIZE in config/settings.py
+        var state = { page: 1, search: '', author: '', genre: '', country: '', inStock: false, ordering: '-published_year' };
+        var books = [];      // books on the current page
+        var current = null;  // book open in the detail panel
+        var controller = null;
+
+        var $ = function (id) { return document.getElementById(id); };
+        var shelf = $('shelf'), detail = $('detail');
+
+        /* ---------- helpers ---------- */
+
+        // Builds DOM nodes with textContent only, so review text can never inject HTML.
+        function el(tag, attrs) {
+            var node = document.createElement(tag);
+            Object.keys(attrs || {}).forEach(function (key) {
+                var value = attrs[key];
+                if (value == null || value === false) return;
+                if (key === 'class') node.className = value;
+                else if (key === 'text') node.textContent = value;
+                else if (key.indexOf('on') === 0) node.addEventListener(key.slice(2), value);
+                else node.setAttribute(key, value === true ? '' : value);
+            });
+            for (var i = 2; i < arguments.length; i++) {
+                var kid = arguments[i];
+                if (kid != null && kid !== false) node.append(kid);
+            }
+            return node;
+        }
+
+        function getCookie(name) {
+            var match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+            return match ? decodeURIComponent(match[1]) : '';
+        }
+
+        function api(path, options) {
+            options = options || {};
+            options.headers = Object.assign({ Accept: 'application/json' }, options.headers);
+            return fetch(path, options).then(function (res) {
+                if (res.ok) return res.status === 204 ? null : res.json();
+                return res.json().catch(function () { return null; }).then(function (data) {
+                    var err = new Error('HTTP ' + res.status);
+                    err.status = res.status;
+                    err.data = data;
+                    throw err;
+                });
+            });
+        }
+
+        function hue(text) {
+            var h = 5381;
+            for (var i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
+            return h % 360;
+        }
+
+        function stars(value) {
+            var full = Math.round(value);
+            return '★★★★★'.slice(0, full) + '☆☆☆☆☆'.slice(0, 5 - full);
+        }
+
+        function ratingText(book) {
+            return book.average_rating == null ? 'No reviews yet' : book.average_rating.toFixed(1) + ' out of 5';
+        }
+
+        function debounce(fn, ms) {
+            var t;
+            return function () { clearTimeout(t); t = setTimeout(fn, ms); };
+        }
+
+        /* ---------- theme ---------- */
+
+        var root = document.documentElement;
+        var toggle = $('themeToggle');
+        function syncToggle() {
+            toggle.textContent = root.getAttribute('data-theme') === 'dark' ? 'Light theme' : 'Dark theme';
+        }
+        toggle.addEventListener('click', function () {
+            var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            try { localStorage.setItem('bookshelf-theme', next); } catch (e) {}
+            syncToggle();
+        });
+        syncToggle();
+
+        /* ---------- shelf ---------- */
+
+        // Typographic cover. If the book has a cover image, it is drawn on top once it loads;
+        // when the image fails, the typographic cover stays.
+        function coverEl(book) {
+            var cover = el('span', { class: 'cover', style: '--h:' + hue(book.title), 'aria-hidden': 'true' },
+                el('span', { class: 'c-title', text: book.title }),
+                el('span', { class: 'c-author', text: book.author_name }));
+            if (/^https?:\/\//i.test(book.cover_url || '')) {
+                var img = el('img', { src: book.cover_url, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' });
+                img.addEventListener('load', function () { cover.classList.add('has-img'); });
+                img.addEventListener('error', function () { img.remove(); });
+                cover.append(img);
+            }
+            return cover;
+        }
+
+        function bookCard(book) {
+            var out = !book.in_stock;
+            var label = book.title + ' by ' + book.author_name + (out ? ', checked out' : '');
+            return el('button', { class: 'book' + (out ? ' is-out' : ''), type: 'button', 'aria-label': label, 'data-id': book.id, onclick: function () { openDetail(book.id); } },
+                coverEl(book),
+                el('span', { class: 'book-meta', 'aria-hidden': 'true' },
+                    book.average_rating == null
+                        ? el('span', { class: 'sub', text: 'No reviews yet' })
+                        : el('span', null, el('span', { class: 'stars', text: stars(book.average_rating) }), ' ' + book.average_rating.toFixed(1)),
+                    el('span', { class: 'sub', text: book.published_year + (out ? ', checked out' : '') })));
+        }
+
+        function renderShelf() {
+            shelf.replaceChildren.apply(shelf, books.map(bookCard));
+        }
+
+        function showNotice(title, text, buttonLabel, handler) {
+            shelf.replaceChildren(el('div', { class: 'notice' },
+                el('h2', { text: title }),
+                el('p', { text: text }),
+                el('button', { class: 'btn ghost', type: 'button', text: buttonLabel, onclick: handler })));
+        }
+
+        function filtered() {
+            return !!(state.search || state.author || state.genre || state.country || state.inStock);
+        }
+
+        function clearFilters() {
+            state.search = ''; state.author = ''; state.genre = ''; state.country = ''; state.inStock = false; state.page = 1;
+            $('search').value = ''; $('author').value = ''; $('genre').value = ''; $('inStock').checked = false;
+            markCountry();
+            loadBooks();
+        }
+
+        function loadBooks() {
+            if (controller) controller.abort();
+            controller = new AbortController();
+            var params = new URLSearchParams({ page: state.page, ordering: state.ordering });
+            if (state.search) params.set('search', state.search);
+            if (state.author) params.set('author', state.author);
+            if (state.genre) params.set('genre', state.genre);
+            if (state.country) params.set('author__country', state.country);
+            if (state.inStock) params.set('in_stock', 'true');
+            shelf.setAttribute('aria-busy', 'true');
+
+            return api('/api/books/?' + params, { signal: controller.signal }).then(function (data) {
+                books = data.results;
+                var pages = Math.max(1, Math.ceil(data.count / PAGE_SIZE));
+                $('count').textContent = data.count + (data.count === 1 ? ' book' : ' books') + (filtered() ? ' match' : ' on the shelf');
+                $('pageInfo').textContent = '';
+                $('pager').hidden = pages <= 1;
+                $('pageLabel').textContent = 'Page ' + state.page + ' of ' + pages;
+                $('prev').disabled = !data.previous;
+                $('next').disabled = !data.next;
+                if (!books.length) {
+                    showNotice('No books found', 'Nothing matches your search and filters. Clear them to see the whole shelf.', 'Clear filters', clearFilters);
+                } else {
+                    renderShelf();
+                }
+                shelf.setAttribute('aria-busy', 'false');
+            }).catch(function (err) {
+                if (err.name === 'AbortError') return;
+                if (err.status === 404 && state.page > 1) { state.page = 1; return loadBooks(); }
+                $('count').textContent = 'Could not load books';
+                $('pager').hidden = true;
+                showNotice('The shelf did not load', 'Check that the server is running, then try again.', 'Try again', loadBooks);
+                shelf.setAttribute('aria-busy', 'false');
+            });
+        }
+
+        function loadAuthors(url) {
+            var select = $('author');
+            return api(url || '/api/authors/').then(function (data) {
+                data.results.forEach(function (a) {
+                    select.append(el('option', { value: a.id, text: a.name }));
+                });
+                if (data.next) {
+                    var next = new URL(data.next, location.href);
+                    return loadAuthors(next.pathname + next.search);
+                }
+            }).catch(function () { /* the author filter stays optional */ });
+        }
+
+        /* ---------- collection overview ---------- */
+
+        function markCountry() {
+            var bars = document.querySelectorAll('#sCountries .bar');
+            Array.prototype.forEach.call(bars, function (b) {
+                b.setAttribute('aria-pressed', String(b.getAttribute('data-country') === state.country));
+            });
+            $('sCountries').classList.toggle('has-pick', !!state.country);
+        }
+
+        function toggleCountry(country) {
+            state.country = state.country === country ? '' : country;
+            state.page = 1;
+            markCountry();
+            loadBooks();
+        }
+
+        function renderStats(s) {
+            $('sBooks').textContent = s.books;
+            $('sStock').textContent = s.in_stock;
+            $('sReviews').textContent = s.reviews;
+            var avg = $('sAvg');
+            avg.textContent = s.average_rating == null ? 'None yet' : s.average_rating.toFixed(1);
+            avg.className = s.average_rating == null ? 'small' : '';
+
+            var top = $('sTop');
+            if (!s.top_rated) {
+                top.replaceChildren(el('p', { class: 'muted', text: 'No reviews yet. The best rated book will appear here.' }));
+            } else {
+                var t = s.top_rated;
+                top.replaceChildren(el('button', { class: 'top-book', type: 'button', 'aria-label': 'Open ' + t.title, onclick: function () { openDetail(t.id); } },
+                    coverEl({ title: t.title, author_name: t.author_name, cover_url: '' }),
+                    el('span', null,
+                        el('span', { class: 't-title', text: t.title }), el('br'),
+                        el('span', { class: 't-sub', text: 'by ' + t.author_name }), el('br'),
+                        el('span', { class: 'stars', text: stars(t.average_rating) }),
+                        el('span', { class: 't-sub', text: ' ' + t.average_rating.toFixed(1) + ' from ' + t.review_count + (t.review_count === 1 ? ' review' : ' reviews') }))));
+            }
+
+            var list = $('sCountries');
+            var max = Math.max.apply(null, s.by_country.map(function (c) { return c.count; }).concat([1]));
+            list.replaceChildren.apply(list, s.by_country.map(function (c) {
+                return el('li', null,
+                    el('button', { class: 'bar', type: 'button', 'data-country': c.country, 'aria-pressed': String(state.country === c.country), onclick: function () { toggleCountry(c.country); } },
+                        el('span', { class: 'b-name', text: c.country }),
+                        el('span', { class: 'b-track' }, el('span', { class: 'b-fill', style: 'width:' + Math.round(c.count / max * 100) + '%' })),
+                        el('span', { class: 'b-count', text: c.count })));
+            }));
+            $('sHint').hidden = !s.by_country.length;
+            list.classList.toggle('has-pick', !!state.country);
+
+            var genre = $('genre');
+            var keep = state.genre;
+            while (genre.options.length > 1) genre.remove(1);
+            s.by_genre.forEach(function (g) {
+                genre.append(el('option', { value: g.genre, text: g.genre + ' (' + g.count + ')' }));
+            });
+            genre.value = keep;
+            $('genreField').hidden = !s.by_genre.length;
+
+            $('stats').hidden = false;
+        }
+
+        function loadStats() {
+            return api('/api/stats/').then(renderStats).catch(function () { /* the overview is optional */ });
+        }
+
+        /* ---------- controls ---------- */
+
+        var onSearch = debounce(function () { state.search = $('search').value.trim(); state.page = 1; loadBooks(); }, 250);
+        $('search').addEventListener('input', onSearch);
+        $('tools').addEventListener('submit', function (e) { e.preventDefault(); });
+        $('author').addEventListener('change', function (e) { state.author = e.target.value; state.page = 1; loadBooks(); });
+        $('genre').addEventListener('change', function (e) { state.genre = e.target.value; state.page = 1; loadBooks(); });
+        $('ordering').addEventListener('change', function (e) { state.ordering = e.target.value; state.page = 1; loadBooks(); });
+        $('inStock').addEventListener('change', function (e) { state.inStock = e.target.checked; state.page = 1; loadBooks(); });
+        $('prev').addEventListener('click', function () { state.page = Math.max(1, state.page - 1); loadBooks(); window.scrollTo({ top: 0 }); });
+        $('next').addEventListener('click', function () { state.page += 1; loadBooks(); window.scrollTo({ top: 0 }); });
+
+        /* ---------- detail panel ---------- */
+
+        function renderDetailHead(book) {
+            $('dTitle').textContent = book.title;
+            $('dAuthor').textContent = 'by ' + book.author_name;
+            var facts = ['Published ' + book.published_year];
+            if (book.genre) facts.push(book.genre);
+            if (book.pages) facts.push(book.pages + ' pages');
+            facts.push(book.in_stock ? 'In stock' : 'Checked out');
+            if (book.isbn) facts.push('ISBN ' + book.isbn);
+            $('dFacts').replaceChildren.apply($('dFacts'), facts.map(function (f) { return el('li', { text: f }); }));
+            $('dDesc').textContent = book.description || '';
+            $('dDesc').hidden = !book.description;
+
+            var summary = $('dSummary');
+            if (book.average_rating == null) {
+                summary.replaceChildren(el('span', { class: 'muted', text: 'No reviews yet. Be the first to write one.' }));
+            } else {
+                summary.replaceChildren(
+                    el('span', { class: 'big', text: book.average_rating.toFixed(1) }),
+                    el('span', { class: 'stars', role: 'img', 'aria-label': ratingText(book), text: stars(book.average_rating) }));
+            }
+        }
+
+        function formatDate(iso) {
+            return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function loadReviews(bookId) {
+            var list = $('dReviews'), more = $('dMore');
+            list.replaceChildren(el('li', { class: 'muted', text: 'Loading reviews' }));
+            more.hidden = true;
+            return api('/api/reviews/?book=' + encodeURIComponent(bookId)).then(function (data) {
+                if (!current || current.id !== bookId) return;
+                if (!data.results.length) {
+                    list.replaceChildren(el('li', { class: 'muted', text: 'No reviews yet.' }));
+                    return;
+                }
+                list.replaceChildren.apply(list, data.results.map(function (r) {
+                    return el('li', null,
+                        el('div', { class: 'who' },
+                            el('strong', { text: r.reviewer_name }),
+                            el('span', { class: 'stars', role: 'img', 'aria-label': r.rating + ' out of 5', text: stars(r.rating) })),
+                        el('div', { class: 'when', text: formatDate(r.created_at) }),
+                        r.comment ? el('p', { text: r.comment }) : null);
+                }));
+                if (data.count > data.results.length) {
+                    more.textContent = 'Showing the latest ' + data.results.length + ' of ' + data.count + ' reviews.';
+                    more.hidden = false;
+                }
+            }).catch(function () {
+                list.replaceChildren(el('li', { class: 'muted', text: 'Could not load the reviews. Close this panel and open it again.' }));
+            });
+        }
+
+        // The book may not be on the current page (for example the most loved book), so fetch it when needed.
+        function openDetail(id) {
+            var found = books.filter(function (b) { return b.id === id; })[0];
+            if (found) return showDetail(found);
+            return api('/api/books/' + encodeURIComponent(id) + '/').then(showDetail).catch(function () {});
+        }
+
+        function showDetail(book) {
+            current = book;
+            renderDetailHead(current);
+            $('reviewForm').reset();
+            $('rMsg').textContent = ''; $('rMsg').className = 'msg';
+            $('dReviews').scrollTop = 0;
+            if (!detail.open) detail.showModal();
+            detail.scrollTop = 0;
+            loadReviews(current.id);
+        }
+
+        $('dClose').addEventListener('click', function () { detail.close(); });
+        detail.addEventListener('click', function (e) { if (e.target === detail) detail.close(); });
+        detail.addEventListener('close', function () { current = null; });
+
+        function setMsg(text, kind) {
+            var m = $('rMsg');
+            m.textContent = text;
+            m.className = 'msg' + (kind ? ' ' + kind : '');
+        }
+
+        function describeErrors(data) {
+            var names = { reviewer_name: 'Name', rating: 'Rating', comment: 'Comment', book: 'Book' };
+            if (!data || typeof data !== 'object') return '';
+            return Object.keys(data).map(function (key) {
+                var msgs = Array.isArray(data[key]) ? data[key].join(' ') : String(data[key]);
+                return (names[key] ? names[key] + ': ' : '') + msgs;
+            }).join(' ');
+        }
+
+        $('reviewForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (!current) return;
+            var bookId = current.id;
+            var name = $('rName').value.trim();
+            var picked = document.querySelector('#reviewForm input[name="rating"]:checked');
+            if (!name) { setMsg('Enter your name.', 'error'); $('rName').focus(); return; }
+            if (!picked) { setMsg('Choose a rating from 1 to 5 stars.', 'error'); return; }
+
+            var submit = $('rSubmit');
+            submit.disabled = true;
+            setMsg('Posting your review', '');
+            api('/api/reviews/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ book: bookId, reviewer_name: name, rating: Number(picked.value), comment: $('rComment').value.trim() })
+            }).then(function () {
+                $('reviewForm').reset();
+                setMsg('Review posted.', 'ok');
+                // Fetch the book again so the average rating on the shelf and in the panel updates.
+                return api('/api/books/' + bookId + '/').then(function (fresh) {
+                    books = books.map(function (b) { return b.id === bookId ? fresh : b; });
+                    if (current && current.id === bookId) { current = fresh; renderDetailHead(fresh); }
+                    renderShelf();
+                    loadStats();
+                }).then(function () { return loadReviews(bookId); });
+            }).catch(function (err) {
+                if (err.status === 403) setMsg('Your session expired. Reload the page and try again.', 'error');
+                else if (err.status === 400) setMsg(describeErrors(err.data) || 'Check the form and try again.', 'error');
+                else setMsg('The review was not saved. Check that the server is running and try again.', 'error');
+            }).then(function () { submit.disabled = false; });
+        });
+
+        /* ---------- start ---------- */
+        loadAuthors();
+        loadStats();
+        loadBooks();
+    })();
+    </script>
+    {% endverbatim %}
 </body>
 </html>

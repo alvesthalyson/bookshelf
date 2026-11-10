@@ -22,6 +22,10 @@ class Book(models.Model):
     published_year = models.PositiveIntegerField()
     isbn = models.CharField(max_length=13, unique=True, null=True, blank=True)
     in_stock = models.BooleanField(default=True)
+    cover_url = models.URLField(max_length=500, blank=True)
+    genre = models.CharField(max_length=60, blank=True)
+    description = models.TextField(blank=True)
+    pages = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

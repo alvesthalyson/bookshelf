@@ -29,7 +29,8 @@ class BookSerializer(serializers.ModelSerializer):
         model = Book
         fields = [
             "id", "title", "author", "author_name", "published_year",
-            "isbn", "in_stock", "average_rating", "created_at",
+            "isbn", "in_stock", "genre", "pages", "description", "cover_url",
+            "average_rating", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 
@@ -40,6 +41,11 @@ class BookSerializer(serializers.ModelSerializer):
     def validate_published_year(self, value):
         if value > date.today().year:
             raise serializers.ValidationError("published_year cannot be in the future.")
+        return value
+
+    def validate_pages(self, value):
+        if value is not None and value < 1:
+            raise serializers.ValidationError("pages must be at least 1.")
         return value
 
     def validate_isbn(self, value):
