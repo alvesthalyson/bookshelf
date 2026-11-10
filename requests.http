@@ -1,0 +1,61 @@
+### Bookshelf API — click "Send Request" above each block (VS Code REST Client)
+@base = http://127.0.0.1:8000/api
+@auth = Basic admin:admin12345
+
+### 1. API root
+GET {{base}}/
+
+### 2. List books (page 1 of 2)
+GET {{base}}/books/
+
+### 3. One book
+GET {{base}}/books/3/
+
+### 4. Create without logging in -> 403
+POST {{base}}/books/
+Content-Type: application/json
+
+{"title": "Botchan", "author": 2, "published_year": 1906}
+
+### 5. Create with Basic auth -> 201
+POST {{base}}/books/
+Authorization: {{auth}}
+Content-Type: application/json
+
+{"title": "Botchan", "author": 2, "published_year": 1906}
+
+### 6. Partial update -> 200
+PATCH {{base}}/books/6/
+Authorization: {{auth}}
+Content-Type: application/json
+
+{"in_stock": false}
+
+### 7. Validation error -> 400
+POST {{base}}/books/
+Authorization: {{auth}}
+Content-Type: application/json
+
+{"title": "Future Book", "author": 2, "published_year": 2099, "isbn": "12AB"}
+
+### 8. Delete -> 204
+DELETE {{base}}/books/6/
+Authorization: {{auth}}
+
+### 9. Search, filter, order
+GET {{base}}/books/?search=murakami
+###
+GET {{base}}/books/?in_stock=false
+###
+GET {{base}}/books/?published_year__gte=1900&ordering=title
+###
+GET {{base}}/authors/?country=Japan
+
+### 10. Reviews + average rating
+POST {{base}}/reviews/
+Authorization: {{auth}}
+Content-Type: application/json
+
+{"book": 3, "reviewer_name": "Aiko", "rating": 5, "comment": "A classic."}
+###
+GET {{base}}/books/?ordering=-avg_rating
