@@ -317,6 +317,24 @@
         }
         .cover .c-author { font-size: 0.82rem; opacity: 0.85; }
         .book.is-out .cover { filter: saturate(0.35); }
+
+        /* Status strip across the bottom of a checked-out book's cover */
+        .cover.has-badge { padding-bottom: 40px; }
+        .badge {
+            position: absolute;
+            left: 12px;
+            right: 0;
+            bottom: 0;
+            z-index: 1;
+            padding: 5px 8px;
+            background: var(--surface);
+            color: var(--ink);
+            border-top: 1px solid var(--line);
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+        .badge.mine { background: var(--ink); color: var(--bg); border-top-color: var(--ink); }
         /* A book taken off the shelf is lifted, then dims. A returned one is lifted, then comes back to color. */
         .cover.pulled { animation: pull-out 0.85s ease-in-out; }
         .cover.pushed { animation: push-in 0.75s ease-out; }
@@ -768,16 +786,57 @@
             return cover;
         }
 
+        function shortDate(iso) {
+            return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+
+        // What the cover says about a checked-out book. Nothing when the book is on the shelf.
+        function statusOf(book) {
+            if (book.in_stock) return null;
+            var mine = loanFor(book.id);
+            var due = mine ? mine.due_at : book.due_at;
+            var late = !!due && new Date(due) < new Date();
+            if (mine) {
+                return late
+                    ? { text: 'Overdue', mine: true, speak: 'you have it and it is overdue' }
+                    : { text: 'Yours, due ' + shortDate(due), mine: true, speak: 'you have it, due ' + shortDate(due) };
+            }
+            if (!due) return { text: 'Checked out', speak: 'checked out' };
+            return late
+                ? { text: 'Overdue', speak: 'overdue' }
+                : { text: 'Back ' + shortDate(due), speak: 'checked out, back ' + shortDate(due) };
+        }
+
+        function applyStatus(card, book) {
+            var cover = card.querySelector('.cover');
+            var old = cover.querySelector('.badge');
+            if (old) old.remove();
+            var status = statusOf(book);
+            cover.classList.toggle('has-badge', !!status);
+            if (status) cover.append(el('span', { class: 'badge' + (status.mine ? ' mine' : ''), text: status.text }));
+            card.setAttribute('aria-label', book.title + ' by ' + book.author_name + (status ? ', ' + status.speak : ''));
+        }
+
+        // Refresh the strips on the cards that are already on screen. Re-drawing the shelf
+        // would restart its animations.
+        function updateStatuses() {
+            Array.prototype.forEach.call(shelf.querySelectorAll('.book'), function (card) {
+                var id = Number(card.getAttribute('data-id'));
+                var book = books.filter(function (b) { return b.id === id; })[0];
+                if (book) applyStatus(card, book);
+            });
+        }
+
         function bookCard(book) {
-            var out = !book.in_stock;
-            var label = book.title + ' by ' + book.author_name + (out ? ', checked out' : '');
-            return el('button', { class: 'book' + (out ? ' is-out' : ''), type: 'button', 'aria-label': label, 'data-id': book.id, onclick: function () { openDetail(book.id); } },
+            var card = el('button', { class: 'book' + (book.in_stock ? '' : ' is-out'), type: 'button', 'data-id': book.id, onclick: function () { openDetail(book.id); } },
                 coverEl(book),
                 el('span', { class: 'book-meta', 'aria-hidden': 'true' },
                     book.average_rating == null
                         ? el('span', { class: 'sub', text: 'No reviews yet' })
                         : el('span', null, el('span', { class: 'stars', text: stars(book.average_rating) }), ' ' + book.average_rating.toFixed(1)),
-                    el('span', { class: 'sub', text: book.published_year + (out ? ', checked out' : '') })));
+                    el('span', { class: 'sub', text: String(book.published_year) })));
+            applyStatus(card, book);
+            return card;
         }
 
         function renderShelf(entrance) {
@@ -821,7 +880,7 @@
             state.search = ''; state.author = ''; state.genre = ''; state.country = ''; state.inStock = false; state.page = 1;
             $('search').value = ''; $('author').value = ''; $('genre').value = ''; $('inStock').checked = false;
             markCountry();
-            loadBooks();
+            go();
         }
 
         function loadBooks() {
@@ -852,7 +911,7 @@
                 shelf.setAttribute('aria-busy', 'false');
             }).catch(function (err) {
                 if (err.name === 'AbortError') return;
-                if (err.status === 404 && state.page > 1) { state.page = 1; return loadBooks(); }
+                if (err.status === 404 && state.page > 1) { state.page = 1; writeUrl(true); return loadBooks(); }
                 $('count').textContent = 'Could not load books';
                 $('pager').hidden = true;
                 showNotice('The shelf did not load', 'Check that the server is running, then try again.', 'Try again', loadBooks);
@@ -866,6 +925,7 @@
                 data.results.forEach(function (a) {
                     select.append(el('option', { value: a.id, text: a.name }));
                 });
+                if (state.author) select.value = state.author; // set from the address before the options existed
                 if (data.next) {
                     var next = new URL(data.next, location.href);
                     return loadAuthors(next.pathname + next.search);
@@ -887,7 +947,7 @@
             state.country = state.country === country ? '' : country;
             state.page = 1;
             markCountry();
-            loadBooks();
+            go();
         }
 
         // Count from the number on screen to the new one. The first time, it counts up from zero.
@@ -972,17 +1032,75 @@
             return api('/api/stats/').then(renderStats).catch(function () { /* the overview is optional */ });
         }
 
+        /* ---------- filters in the address bar ---------- */
+
+        var URL_KEYS = ['q', 'author', 'genre', 'country', 'stock', 'sort', 'page'];
+        var SORTS = ['-published_year', 'published_year', 'title', '-avg_rating'];
+
+        // Read the filters from the address, ignoring anything that is not valid.
+        function readUrl() {
+            var p = new URLSearchParams(location.search);
+            var page = parseInt(p.get('page'), 10);
+            state.search = (p.get('q') || '').trim();
+            state.author = /^\d+$/.test(p.get('author') || '') ? p.get('author') : '';
+            state.genre = p.get('genre') || '';
+            state.country = p.get('country') || '';
+            state.inStock = p.get('stock') === '1';
+            state.ordering = SORTS.indexOf(p.get('sort')) > -1 ? p.get('sort') : SORTS[0];
+            state.page = page > 0 ? page : 1;
+        }
+
+        // Write the filters to the address. Other parameters, like ?theme=, are kept.
+        // replace=true updates the current history entry. Otherwise the Back button returns to the previous filters.
+        function writeUrl(replace) {
+            try {
+                var p = new URLSearchParams(location.search);
+                URL_KEYS.forEach(function (key) { p.delete(key); });
+                if (state.search) p.set('q', state.search);
+                if (state.author) p.set('author', state.author);
+                if (state.genre) p.set('genre', state.genre);
+                if (state.country) p.set('country', state.country);
+                if (state.inStock) p.set('stock', '1');
+                if (state.ordering !== SORTS[0]) p.set('sort', state.ordering);
+                if (state.page > 1) p.set('page', state.page);
+                var query = p.toString();
+                var url = location.pathname + (query ? '?' + query : '') + location.hash;
+                if (url === location.pathname + location.search + location.hash) return;
+                history[replace ? 'replaceState' : 'pushState'](null, '', url);
+            } catch (e) { /* the address cannot change here, for example inside a preview frame */ }
+        }
+
+        function syncControls() {
+            $('search').value = state.search;
+            $('author').value = state.author;
+            $('genre').value = state.genre;
+            $('ordering').value = state.ordering;
+            $('inStock').checked = state.inStock;
+            markCountry();
+        }
+
+        function go(replace) {
+            writeUrl(replace);
+            return loadBooks();
+        }
+
+        window.addEventListener('popstate', function () {
+            readUrl();
+            syncControls();
+            loadBooks();
+        });
+
         /* ---------- controls ---------- */
 
-        var onSearch = debounce(function () { state.search = $('search').value.trim(); state.page = 1; loadBooks(); }, 250);
+        var onSearch = debounce(function () { state.search = $('search').value.trim(); state.page = 1; go(true); }, 250);
         $('search').addEventListener('input', onSearch);
         $('tools').addEventListener('submit', function (e) { e.preventDefault(); });
-        $('author').addEventListener('change', function (e) { state.author = e.target.value; state.page = 1; loadBooks(); });
-        $('genre').addEventListener('change', function (e) { state.genre = e.target.value; state.page = 1; loadBooks(); });
-        $('ordering').addEventListener('change', function (e) { state.ordering = e.target.value; state.page = 1; loadBooks(); });
-        $('inStock').addEventListener('change', function (e) { state.inStock = e.target.checked; state.page = 1; loadBooks(); });
-        $('prev').addEventListener('click', function () { state.page = Math.max(1, state.page - 1); loadBooks(); window.scrollTo({ top: 0 }); });
-        $('next').addEventListener('click', function () { state.page += 1; loadBooks(); window.scrollTo({ top: 0 }); });
+        $('author').addEventListener('change', function (e) { state.author = e.target.value; state.page = 1; go(); });
+        $('genre').addEventListener('change', function (e) { state.genre = e.target.value; state.page = 1; go(); });
+        $('ordering').addEventListener('change', function (e) { state.ordering = e.target.value; state.page = 1; go(); });
+        $('inStock').addEventListener('change', function (e) { state.inStock = e.target.checked; state.page = 1; go(); });
+        $('prev').addEventListener('click', function () { state.page = Math.max(1, state.page - 1); go(); window.scrollTo({ top: 0 }); });
+        $('next').addEventListener('click', function () { state.page += 1; go(); window.scrollTo({ top: 0 }); });
 
         /* ---------- detail panel ---------- */
 
@@ -1299,6 +1417,7 @@
         }
 
         function refreshLoanUi() {
+            updateStatuses();
             if (current) renderLoanBox(current);
             if (loansDlg.open) renderLoansPanel();
         }
@@ -1371,6 +1490,8 @@
         }
 
         /* ---------- start ---------- */
+        readUrl();
+        syncControls();
         loadSession();
         loadAuthors();
         loadStats();
