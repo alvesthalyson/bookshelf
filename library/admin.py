@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Author, Book, Review
+from .models import Author, Book, Loan, Review
 
 
 @admin.register(Author)
@@ -18,3 +18,10 @@ class BookAdmin(admin.ModelAdmin):
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ["book", "reviewer_name", "rating", "created_at"]
+
+
+@admin.register(Loan)
+class LoanAdmin(admin.ModelAdmin):
+    list_display = ["book", "user", "borrowed_at", "due_at", "returned_at", "renewals"]
+    list_filter = ["returned_at"]
+    search_fields = ["book__title", "user__username"]

@@ -135,6 +135,8 @@
             font-size: 0.9rem;
         }
         .theme-toggle:hover { border-color: var(--accent); }
+        .account { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 10px; }
+        .account .who { color: var(--muted); font-size: 0.9rem; }
 
         /* Hero */
         .hero {
@@ -232,7 +234,7 @@
         .field { display: flex; flex-direction: column; gap: 4px; }
         .field span { font-size: 0.85rem; color: var(--muted); }
         .field.grow { flex: 1 1 240px; }
-        input[type="search"], input[type="text"], select, textarea {
+        input[type="search"], input[type="text"], input[type="password"], select, textarea {
             width: 100%;
             background: var(--surface);
             border: 1px solid var(--line);
@@ -362,7 +364,7 @@
         }
 
         /* Detail panel */
-        dialog#detail {
+        dialog.side {
             position: fixed;
             inset: 0 0 0 auto;
             margin: 0;
@@ -376,8 +378,28 @@
             color: var(--ink);
             overflow-y: auto;
         }
-        dialog#detail[open] { animation: panel-in 0.2s ease-out; }
-        dialog#detail::backdrop { background: var(--backdrop); }
+        dialog.side[open] { animation: panel-in 0.2s ease-out; }
+        dialog.side::backdrop, dialog.modal::backdrop { background: var(--backdrop); }
+
+        /* Centered dialog (log in, create account) */
+        dialog.modal {
+            margin: auto;
+            width: min(420px, calc(100% - 32px));
+            padding: 0;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--surface);
+            color: var(--ink);
+        }
+        dialog.modal[open] { animation: modal-in 0.18s ease-out; }
+        @keyframes modal-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+        .stack { display: flex; flex-direction: column; gap: 14px; }
+        .stack h2 { margin: 0; }
+        .stack p { margin: 0; }
+        .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+        .link-btn { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; cursor: pointer; }
+        .link-btn:hover { color: var(--accent); }
+        .btn.small { padding: 5px 14px; font-size: 0.9rem; border-radius: 999px; }
         @keyframes panel-in { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
 
         .panel { padding: 28px 28px 40px; }
@@ -387,6 +409,14 @@
         .facts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 18px 0 0; padding: 0; list-style: none; font-size: 0.95rem; }
         .facts li { color: var(--muted); }
         .desc { margin: 18px 0 0; max-width: 60ch; overflow-wrap: anywhere; }
+        .loan { margin: 0; padding: 16px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+        .loan-title { font-weight: 700; }
+        .tag { display: inline-block; margin-left: 8px; padding: 1px 10px; border: 1px solid currentColor; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+        .tag.bad { color: #c0392b; }
+        :root[data-theme="dark"] .tag.bad { color: #ff8a7a; }
+        .loan-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+        .loan-list li { padding-bottom: 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+        .loan-list .t { font-family: var(--display); font-weight: 800; font-size: 1.1rem; line-height: 1.25; }
         .summary { margin: 22px 0 0; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
         .summary .big { font-family: var(--display); font-weight: 800; font-size: 2.2rem; line-height: 1; margin-right: 10px; }
 
@@ -431,7 +461,12 @@
     <div class="wrap">
         <header class="top">
             <a class="brand" href="/">Bookshelf</a>
-            <button class="theme-toggle" id="themeToggle" type="button">Dark theme</button>
+            <div class="account">
+                <span class="who" id="whoName" hidden></span>
+                <button class="btn ghost small" id="loansBtn" type="button" hidden>My loans</button>
+                <button class="btn ghost small" id="authBtn" type="button">Log in</button>
+                <button class="theme-toggle" id="themeToggle" type="button">Dark theme</button>
+            </div>
         </header>
 
         <section class="hero">
@@ -501,7 +536,7 @@
         </footer>
     </div>
 
-    <dialog id="detail" aria-labelledby="dTitle">
+    <dialog id="detail" class="side" aria-labelledby="dTitle">
         <div class="panel">
             <div class="panel-head">
                 <div>
@@ -513,6 +548,7 @@
             <ul class="facts" id="dFacts"></ul>
             <p class="desc" id="dDesc" hidden></p>
             <div class="summary" id="dSummary"></div>
+            <div class="loan" id="dLoan"></div>
 
             <h3>Reviews</h3>
             <ul class="reviews" id="dReviews"></ul>
@@ -544,6 +580,45 @@
         </div>
     </dialog>
 
+    <dialog id="authDlg" class="modal" aria-labelledby="aTitle">
+        <form class="panel stack" id="authForm" novalidate>
+            <div class="panel-head">
+                <h2 id="aTitle">Log in</h2>
+                <button class="btn ghost" id="aClose" type="button">Close</button>
+            </div>
+            <p class="muted" id="aIntro"></p>
+            <label class="field">
+                <span>Username</span>
+                <input type="text" id="aUser" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+            </label>
+            <label class="field">
+                <span>Password</span>
+                <input type="password" id="aPass" autocomplete="current-password" required>
+            </label>
+            <div class="msg" id="aMsg" role="alert"></div>
+            <div class="row">
+                <button class="btn" id="aSubmit" type="submit">Log in</button>
+                <button class="link-btn" id="aSwitch" type="button">Create an account</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="loansDlg" class="side" aria-labelledby="lTitle">
+        <div class="panel">
+            <div class="panel-head">
+                <h2 id="lTitle">My loans</h2>
+                <button class="btn ghost" id="lClose" type="button">Close</button>
+            </div>
+            <p class="by" id="lRules"></p>
+            <div class="msg" id="lMsg" role="status"></div>
+            <h3>On loan</h3>
+            <ul class="loan-list" id="lActive"></ul>
+            <h3>Returned</h3>
+            <ul class="loan-list" id="lHistory"></ul>
+            <p class="muted" id="lMore" hidden></p>
+        </div>
+    </dialog>
+
     {% verbatim %}
     <script>
     (function () {
@@ -553,10 +628,23 @@
         var state = { page: 1, search: '', author: '', genre: '', country: '', inStock: false, ordering: '-published_year' };
         var books = [];      // books on the current page
         var current = null;  // book open in the detail panel
+        var user = null;     // { username, is_staff } when logged in
+        var rules = { loan_days: 14, max_active_loans: 3, max_renewals: 2 }; // replaced by /api/auth/me/
+        var myLoans = [];    // my active loans
+        var loanNote = null; // { text, kind } shown under the loan buttons
         var controller = null;
 
         var $ = function (id) { return document.getElementById(id); };
-        var shelf = $('shelf'), detail = $('detail');
+        var shelf = $('shelf'), detail = $('detail'), authDlg = $('authDlg'), loansDlg = $('loansDlg');
+
+        // POST/PUT with the CSRF token Django expects.
+        function send(method, path, body) {
+            return api(path, {
+                method: method,
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: body === undefined ? undefined : JSON.stringify(body)
+            });
+        }
 
         /* ---------- helpers ---------- */
 
@@ -875,8 +963,11 @@
 
         function showDetail(book) {
             current = book;
+            loanNote = null;
             renderDetailHead(current);
+            renderLoanBox(current);
             $('reviewForm').reset();
+            $('rName').value = user ? user.username : '';
             $('rMsg').textContent = ''; $('rMsg').className = 'msg';
             $('dReviews').scrollTop = 0;
             if (!detail.open) detail.showModal();
@@ -925,7 +1016,7 @@
                 // Fetch the book again so the average rating on the shelf and in the panel updates.
                 return api('/api/books/' + bookId + '/').then(function (fresh) {
                     books = books.map(function (b) { return b.id === bookId ? fresh : b; });
-                    if (current && current.id === bookId) { current = fresh; renderDetailHead(fresh); }
+                    if (current && current.id === bookId) { current = fresh; renderDetailHead(fresh); renderLoanBox(fresh); }
                     renderShelf();
                     loadStats();
                 }).then(function () { return loadReviews(bookId); });
@@ -936,7 +1027,263 @@
             }).then(function () { submit.disabled = false; });
         });
 
+        /* ---------- account: log in, create account, log out ---------- */
+
+        var authMode = 'login';
+
+        function renderAccount() {
+            $('whoName').hidden = !user;
+            $('whoName').textContent = user ? 'Signed in as ' + user.username : '';
+            $('loansBtn').hidden = !user;
+            $('authBtn').textContent = user ? 'Log out' : 'Log in';
+        }
+
+        function setAuthMode(mode) {
+            authMode = mode;
+            var login = mode === 'login';
+            $('aTitle').textContent = login ? 'Log in' : 'Create an account';
+            $('aIntro').textContent = login
+                ? 'Log in to borrow books and keep track of your loans.'
+                : 'Pick a username and a password of at least 8 characters. Avoid common passwords.';
+            $('aSubmit').textContent = login ? 'Log in' : 'Create account';
+            $('aSwitch').textContent = login ? 'Create an account' : 'I already have an account';
+            $('aPass').setAttribute('autocomplete', login ? 'current-password' : 'new-password');
+        }
+
+        function setAuthMsg(text) { $('aMsg').textContent = text; $('aMsg').className = 'msg' + (text ? ' error' : ''); }
+
+        function openAuth(mode) {
+            setAuthMode(mode || 'login');
+            $('authForm').reset();
+            setAuthMsg('');
+            if (!authDlg.open) authDlg.showModal();
+            $('aUser').focus();
+        }
+
+        function applySession(session) {
+            rules = session.rules || rules;
+            user = session.authenticated ? { username: session.username, is_staff: session.is_staff } : null;
+            renderAccount();
+            if (user) return loadMyLoans();
+            myLoans = [];
+            refreshLoanUi();
+        }
+
+        function loadSession() {
+            return api('/api/auth/me/').then(applySession).catch(function () { renderAccount(); });
+        }
+
+        $('authBtn').addEventListener('click', function () {
+            if (!user) { openAuth('login'); return; }
+            send('POST', '/api/auth/logout/').then(function (session) {
+                if (loansDlg.open) loansDlg.close();
+                loanNote = null;
+                return applySession(session);
+            }).catch(function () {});
+        });
+        $('aClose').addEventListener('click', function () { authDlg.close(); });
+        authDlg.addEventListener('click', function (e) { if (e.target === authDlg) authDlg.close(); });
+        $('aSwitch').addEventListener('click', function () { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthMsg(''); });
+
+        $('authForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            var name = $('aUser').value.trim(), pass = $('aPass').value;
+            if (!name || !pass) { setAuthMsg('Enter your username and password.'); return; }
+            var submit = $('aSubmit');
+            submit.disabled = true;
+            setAuthMsg('');
+            send('POST', '/api/auth/' + (authMode === 'login' ? 'login' : 'register') + '/', { username: name, password: pass })
+                .then(function (session) {
+                    authDlg.close();
+                    return applySession(session).then(function () {
+                        if (current && !$('rName').value) $('rName').value = user.username;
+                    });
+                })
+                .catch(function (err) {
+                    var fields = err.data && err.data.field_errors;
+                    if (fields) {
+                        setAuthMsg(Object.keys(fields).map(function (k) { return fields[k].join(' '); }).join(' '));
+                    } else if (err.data && err.data.detail) {
+                        setAuthMsg(err.data.detail);
+                    } else if (err.status === 403) {
+                        setAuthMsg('Your page is out of date. Reload it and try again.');
+                    } else {
+                        setAuthMsg('Could not reach the server. Check that it is running and try again.');
+                    }
+                })
+                .then(function () { submit.disabled = false; });
+        });
+
+        /* ---------- loans: borrow, renew, return ---------- */
+
+        function loanFor(bookId) {
+            return myLoans.filter(function (l) { return l.book === bookId; })[0];
+        }
+
+        function loadMyLoans() {
+            return api('/api/loans/?mine=true&active=true').then(function (data) {
+                myLoans = data.results;
+                refreshLoanUi();
+            }).catch(function () {});
+        }
+
+        function noteEl(extra) {
+            return el('div', { class: 'msg' + (loanNote ? ' ' + loanNote.kind : ''), role: 'status', text: loanNote ? loanNote.text : '' });
+        }
+
+        function overdueTag(loan) {
+            return loan.is_overdue ? el('span', { class: 'tag bad', text: 'Overdue' }) : null;
+        }
+
+        function canRenew(loan) {
+            return !loan.is_overdue && loan.renewals < rules.max_renewals;
+        }
+
+        function renderLoanBox(book) {
+            var box = $('dLoan');
+            var mine = loanFor(book.id);
+            var kids = [];
+            if (mine) {
+                kids.push(el('div', { class: 'loan-title', text: 'You have this book' }));
+                kids.push(el('div', null, 'Due ', el('strong', { text: formatDate(mine.due_at) }), overdueTag(mine)));
+                kids.push(el('div', { class: 'row' },
+                    el('button', { class: 'btn ghost', type: 'button', text: 'Renew', disabled: !canRenew(mine), onclick: function () { renewLoan(mine); } }),
+                    el('button', { class: 'btn', type: 'button', text: 'Return', onclick: function () { returnLoan(mine); } })));
+                if (!canRenew(mine)) {
+                    kids.push(el('div', { class: 'muted', text: mine.is_overdue
+                        ? 'Overdue loans cannot be renewed. Return the book.'
+                        : 'You have used all ' + rules.max_renewals + ' renewals for this loan.' }));
+                }
+            } else if (book.in_stock) {
+                var full = user && myLoans.length >= rules.max_active_loans;
+                if (!user) {
+                    kids.push(el('div', { class: 'muted', text: 'Log in to borrow this book for ' + rules.loan_days + ' days.' }));
+                    kids.push(el('div', null, el('button', { class: 'btn', type: 'button', text: 'Log in to borrow', onclick: function () { openAuth('login'); } })));
+                } else {
+                    kids.push(el('div', null, el('button', { class: 'btn', type: 'button', text: 'Borrow for ' + rules.loan_days + ' days', disabled: full, onclick: function () { borrowBook(book); } })));
+                    if (full) kids.push(el('div', { class: 'muted', text: 'You already have ' + myLoans.length + ' books on loan. Return one to borrow another.' }));
+                }
+            } else {
+                kids.push(el('div', { class: 'loan-title', text: 'Checked out' }));
+                kids.push(el('div', { class: 'muted', text: book.due_at ? 'Expected back ' + formatDate(book.due_at) + '.' : 'Not available right now.' }));
+            }
+            kids.push(noteEl());
+            box.replaceChildren.apply(box, kids);
+        }
+
+        function renderLoansPanel() {
+            $('lRules').textContent = 'Loans last ' + rules.loan_days + ' days. You can borrow up to ' + rules.max_active_loans +
+                ' books and renew each loan up to ' + rules.max_renewals + ' times.';
+            $('lMsg').textContent = loanNote ? loanNote.text : '';
+            $('lMsg').className = 'msg' + (loanNote ? ' ' + loanNote.kind : '');
+            var list = $('lActive');
+            if (!myLoans.length) {
+                list.replaceChildren(el('li', { class: 'muted', text: 'No books on loan. Open a book and select Borrow.' }));
+                return;
+            }
+            list.replaceChildren.apply(list, myLoans.map(function (loan) {
+                return el('li', null,
+                    el('span', { class: 't', text: loan.book_title }),
+                    el('span', { class: 'muted', text: 'by ' + loan.author_name }),
+                    el('span', null, 'Due ', el('strong', { text: formatDate(loan.due_at) }), overdueTag(loan),
+                        loan.renewals ? el('span', { class: 'muted', text: ' (renewed ' + loan.renewals + (loan.renewals === 1 ? ' time)' : ' times)') }) : null),
+                    el('div', { class: 'row' },
+                        el('button', { class: 'btn ghost small', type: 'button', text: 'Renew', disabled: !canRenew(loan), onclick: function () { renewLoan(loan); } }),
+                        el('button', { class: 'btn small', type: 'button', text: 'Return', onclick: function () { returnLoan(loan); } })));
+            }));
+        }
+
+        function loadLoanHistory() {
+            var list = $('lHistory'), more = $('lMore');
+            return api('/api/loans/?mine=true&active=false').then(function (data) {
+                if (!data.results.length) {
+                    list.replaceChildren(el('li', { class: 'muted', text: 'Nothing returned yet.' }));
+                    more.hidden = true;
+                    return;
+                }
+                list.replaceChildren.apply(list, data.results.map(function (loan) {
+                    return el('li', null,
+                        el('span', { class: 't', text: loan.book_title }),
+                        el('span', { class: 'muted', text: 'Borrowed ' + formatDate(loan.borrowed_at) + ', returned ' + formatDate(loan.returned_at) }));
+                }));
+                more.hidden = data.count <= data.results.length;
+                more.textContent = 'Showing the latest ' + data.results.length + ' of ' + data.count + ' returned loans.';
+            }).catch(function () {
+                list.replaceChildren(el('li', { class: 'muted', text: 'Could not load your history. Close this panel and open it again.' }));
+            });
+        }
+
+        function refreshLoanUi() {
+            if (current) renderLoanBox(current);
+            if (loansDlg.open) renderLoansPanel();
+        }
+
+        function openLoans() {
+            loanNote = null;
+            renderLoansPanel();
+            $('lHistory').replaceChildren(el('li', { class: 'muted', text: 'Loading' }));
+            if (!loansDlg.open) loansDlg.showModal();
+            loansDlg.scrollTop = 0;
+            loadMyLoans();
+            loadLoanHistory();
+        }
+        $('loansBtn').addEventListener('click', openLoans);
+        $('lClose').addEventListener('click', function () { loansDlg.close(); });
+        loansDlg.addEventListener('click', function (e) { if (e.target === loansDlg) loansDlg.close(); });
+
+        // Reload what changed after a loan action: the book on the shelf, my loans, the overview.
+        function refreshBook(bookId) {
+            return api('/api/books/' + encodeURIComponent(bookId) + '/').then(function (fresh) {
+                books = books.map(function (b) { return b.id === bookId ? fresh : b; });
+                if (current && current.id === bookId) { current = fresh; renderDetailHead(fresh); renderLoanBox(fresh); }
+                renderShelf();
+            });
+        }
+
+        function afterLoanChange(bookId) {
+            var jobs = [refreshBook(bookId).catch(function () {}), loadMyLoans(), loadStats()];
+            if (loansDlg.open) jobs.push(loadLoanHistory());
+            return Promise.all(jobs);
+        }
+
+        function loanFailed(err, bookId) {
+            if (err.status === 403) {
+                loanNote = { text: 'Your session expired. Log in again.', kind: 'error' };
+                loadSession();
+            } else if (err.data && err.data.detail) {
+                loanNote = { text: err.data.detail, kind: 'error' };
+                if (err.status === 409) afterLoanChange(bookId); // the page was out of date, so sync it
+            } else {
+                loanNote = { text: 'That did not work. Check that the server is running and try again.', kind: 'error' };
+            }
+            refreshLoanUi();
+        }
+
+        function borrowBook(book) {
+            loanNote = { text: 'Borrowing', kind: '' };
+            refreshLoanUi();
+            send('POST', '/api/loans/', { book: book.id }).then(function (loan) {
+                loanNote = { text: 'Borrowed. Due ' + formatDate(loan.due_at) + '.', kind: 'ok' };
+                return afterLoanChange(book.id);
+            }).catch(function (err) { loanFailed(err, book.id); });
+        }
+
+        function returnLoan(loan) {
+            send('POST', '/api/loans/' + loan.id + '/return/').then(function () {
+                loanNote = { text: 'Returned "' + loan.book_title + '". Thank you.', kind: 'ok' };
+                return afterLoanChange(loan.book);
+            }).catch(function (err) { loanFailed(err, loan.book); });
+        }
+
+        function renewLoan(loan) {
+            send('POST', '/api/loans/' + loan.id + '/renew/').then(function (fresh) {
+                loanNote = { text: 'Renewed. New due date: ' + formatDate(fresh.due_at) + '.', kind: 'ok' };
+                return afterLoanChange(loan.book);
+            }).catch(function (err) { loanFailed(err, loan.book); });
+        }
+
         /* ---------- start ---------- */
+        loadSession();
         loadAuthors();
         loadStats();
         loadBooks();

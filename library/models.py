@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Author(models.Model):
@@ -49,3 +51,40 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.reviewer_name} on {self.book}: {self.rating}/5"
+
+
+class Loan(models.Model):
+    """A book borrowed by a user. returned_at stays empty while the loan is active."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="loans"
+    )
+    book = models.ForeignKey(
+        Book, on_delete=models.CASCADE, related_name="loans"
+    )
+    borrowed_at = models.DateTimeField(auto_now_add=True)
+    due_at = models.DateTimeField()
+    returned_at = models.DateTimeField(null=True, blank=True)
+    renewals = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-borrowed_at"]
+        constraints = [
+            # There is one copy of each book, so only one loan can be active at a time.
+            models.UniqueConstraint(
+                fields=["book"],
+                condition=models.Q(returned_at__isnull=True),
+                name="one_active_loan_per_book",
+            )
+        ]
+
+    @property
+    def is_active(self):
+        return self.returned_at is None
+
+    @property
+    def is_overdue(self):
+        return self.is_active and self.due_at < timezone.now()
+
+    def __str__(self):
+        return f"{self.user} borrowed {self.book}"

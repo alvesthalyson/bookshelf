@@ -65,6 +65,18 @@ DATABASES = {
     }
 }
 
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+# Loan rules (used by library/services.py)
+LOAN_DAYS = 14
+MAX_ACTIVE_LOANS = 3
+MAX_RENEWALS = 2
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Tokyo"
 USE_I18N = True
