@@ -211,7 +211,7 @@
         }
         .bar:hover { border-color: var(--line); }
         .bar .b-track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
-        .bar .b-fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+        .bar .b-fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
         .bar .b-count { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
         .bar[aria-pressed="true"] { border-color: var(--accent); font-weight: 700; }
         .bars.has-pick .bar[aria-pressed="false"] { opacity: 0.55; }
@@ -265,6 +265,10 @@
         }
         .shelf[aria-busy="true"] { opacity: 0.45; }
 
+        /* The books settle onto the shelf one after another when it loads or is filtered. */
+        .shelf.enter .book { animation: shelf-in 0.38s ease-out backwards; animation-delay: calc(var(--i, 0) * 32ms); }
+        @keyframes shelf-in { from { opacity: 0; transform: translateY(10px); } }
+
         .book {
             display: flex;
             flex-direction: column;
@@ -313,6 +317,19 @@
         }
         .cover .c-author { font-size: 0.82rem; opacity: 0.85; }
         .book.is-out .cover { filter: saturate(0.35); }
+        /* A book taken off the shelf is lifted, then dims. A returned one is lifted, then comes back to color. */
+        .cover.pulled { animation: pull-out 0.85s ease-in-out; }
+        .cover.pushed { animation: push-in 0.75s ease-out; }
+        @keyframes pull-out {
+            0%   { transform: none; filter: saturate(1); }
+            35%  { transform: translateY(-18px) rotate(-1.5deg); filter: saturate(1); }
+            100% { transform: none; filter: saturate(0.35); }
+        }
+        @keyframes push-in {
+            0%   { transform: none; filter: saturate(0.35); }
+            40%  { transform: translateY(-10px); filter: saturate(1); }
+            100% { transform: none; filter: saturate(1); }
+        }
         .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .cover.has-img .c-title, .cover.has-img .c-author { visibility: hidden; }
 
@@ -533,6 +550,7 @@
         <footer>
             <a href="/api/">Browse the API</a>
             <a href="/admin/">Admin</a>
+            <a href="https://openlibrary.org" target="_blank" rel="noopener">Covers from Open Library</a>
         </footer>
     </div>
 
@@ -632,6 +650,10 @@
         var rules = { loan_days: 14, max_active_loans: 3, max_renewals: 2 }; // replaced by /api/auth/me/
         var myLoans = [];    // my active loans
         var loanNote = null; // { text, kind } shown under the loan buttons
+        var flash = null;    // { id, kind } book to animate on the shelf: 'pulled' (borrowed) or 'pushed' (returned)
+        var barWidth = {};   // country -> width in percent last drawn, so bars grow from where they were
+        var enterTimer;
+        var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
         var controller = null;
 
         var $ = function (id) { return document.getElementById(id); };
@@ -722,14 +744,23 @@
 
         /* ---------- shelf ---------- */
 
+        // The saved cover URL wins. Without one, try Open Library by ISBN. A book without a cover there
+        // answers 404 (default=false), so the typographic cover stays.
+        function coverUrl(book) {
+            if (/^https?:\/\//i.test(book.cover_url || '')) return book.cover_url;
+            var isbn = String(book.isbn || '').replace(/[^0-9Xx]/g, '');
+            return isbn ? 'https://covers.openlibrary.org/b/isbn/' + isbn + '-L.jpg?default=false' : '';
+        }
+
         // Typographic cover. If the book has a cover image, it is drawn on top once it loads;
         // when the image fails, the typographic cover stays.
         function coverEl(book) {
             var cover = el('span', { class: 'cover', style: '--h:' + hue(book.title), 'aria-hidden': 'true' },
                 el('span', { class: 'c-title', text: book.title }),
                 el('span', { class: 'c-author', text: book.author_name }));
-            if (/^https?:\/\//i.test(book.cover_url || '')) {
-                var img = el('img', { src: book.cover_url, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' });
+            var url = coverUrl(book);
+            if (url) {
+                var img = el('img', { src: url, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' });
                 img.addEventListener('load', function () { cover.classList.add('has-img'); });
                 img.addEventListener('error', function () { img.remove(); });
                 cover.append(img);
@@ -749,8 +780,30 @@
                     el('span', { class: 'sub', text: book.published_year + (out ? ', checked out' : '') })));
         }
 
-        function renderShelf() {
-            shelf.replaceChildren.apply(shelf, books.map(bookCard));
+        function renderShelf(entrance) {
+            clearTimeout(enterTimer);
+            shelf.classList.remove('enter');
+            var cards = books.map(bookCard);
+            cards.forEach(function (card, i) { card.style.setProperty('--i', Math.min(i, 11)); });
+            shelf.replaceChildren.apply(shelf, cards);
+            if (entrance && !reduceMotion.matches) {
+                shelf.classList.add('enter');
+                enterTimer = setTimeout(function () { shelf.classList.remove('enter'); }, 1000);
+            }
+            playFlash();
+        }
+
+        // Plays the borrow or return animation on the book's cover. If a panel is open, the shelf is
+        // behind its backdrop, so wait until the panel closes.
+        function playFlash() {
+            if (!flash || detail.open || loansDlg.open) return;
+            var item = flash;
+            flash = null;
+            if (reduceMotion.matches) return;
+            var cover = shelf.querySelector('.book[data-id="' + item.id + '"] .cover');
+            if (!cover) return;
+            cover.classList.add(item.kind);
+            cover.addEventListener('animationend', function () { cover.classList.remove(item.kind); }, { once: true });
         }
 
         function showNotice(title, text, buttonLabel, handler) {
@@ -794,7 +847,7 @@
                 if (!books.length) {
                     showNotice('No books found', 'Nothing matches your search and filters. Clear them to see the whole shelf.', 'Clear filters', clearFilters);
                 } else {
-                    renderShelf();
+                    renderShelf(true);
                 }
                 shelf.setAttribute('aria-busy', 'false');
             }).catch(function (err) {
@@ -837,12 +890,33 @@
             loadBooks();
         }
 
+        // Count from the number on screen to the new one. The first time, it counts up from zero.
+        function countTo(node, to, decimals) {
+            var from = node._v == null ? 0 : node._v;
+            node._v = to;
+            var format = function (v) { return decimals ? v.toFixed(decimals) : String(Math.round(v)); };
+            cancelAnimationFrame(node._raf);
+            if (reduceMotion.matches || from === to) { node.textContent = format(to); return; }
+            var start = performance.now(), duration = 600;
+            (function tick(now) {
+                var t = Math.min(1, (now - start) / duration);
+                node.textContent = format(from + (to - from) * (1 - Math.pow(1 - t, 3)));
+                if (t < 1) node._raf = requestAnimationFrame(tick);
+            })(start);
+        }
+
         function renderStats(s) {
-            $('sBooks').textContent = s.books;
-            $('sStock').textContent = s.in_stock;
-            $('sReviews').textContent = s.reviews;
+            countTo($('sBooks'), s.books, 0);
+            countTo($('sStock'), s.in_stock, 0);
+            countTo($('sReviews'), s.reviews, 0);
             var avg = $('sAvg');
-            avg.textContent = s.average_rating == null ? 'None yet' : s.average_rating.toFixed(1);
+            if (s.average_rating == null) {
+                cancelAnimationFrame(avg._raf);
+                avg._v = null;
+                avg.textContent = 'None yet';
+            } else {
+                countTo(avg, s.average_rating, 1);
+            }
             avg.className = s.average_rating == null ? 'small' : '';
 
             var top = $('sTop');
@@ -861,13 +935,24 @@
 
             var list = $('sCountries');
             var max = Math.max.apply(null, s.by_country.map(function (c) { return c.count; }).concat([1]));
+            var grow = [];
             list.replaceChildren.apply(list, s.by_country.map(function (c) {
+                var target = Math.round(c.count / max * 100);
+                // Start at the width drawn last time (zero on the first draw), then move to the new one.
+                var fill = el('span', { class: 'b-fill', style: 'width:' + (barWidth[c.country] || 0) + '%' });
+                grow.push([fill, target]);
+                barWidth[c.country] = target;
                 return el('li', null,
                     el('button', { class: 'bar', type: 'button', 'data-country': c.country, 'aria-pressed': String(state.country === c.country), onclick: function () { toggleCountry(c.country); } },
                         el('span', { class: 'b-name', text: c.country }),
-                        el('span', { class: 'b-track' }, el('span', { class: 'b-fill', style: 'width:' + Math.round(c.count / max * 100) + '%' })),
+                        el('span', { class: 'b-track' }, fill),
                         el('span', { class: 'b-count', text: c.count })));
             }));
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    grow.forEach(function (g) { g[0].style.width = g[1] + '%'; });
+                });
+            });
             $('sHint').hidden = !s.by_country.length;
             list.classList.toggle('has-pick', !!state.country);
 
@@ -977,7 +1062,7 @@
 
         $('dClose').addEventListener('click', function () { detail.close(); });
         detail.addEventListener('click', function (e) { if (e.target === detail) detail.close(); });
-        detail.addEventListener('close', function () { current = null; });
+        detail.addEventListener('close', function () { current = null; playFlash(); });
 
         function setMsg(text, kind) {
             var m = $('rMsg');
@@ -1230,6 +1315,7 @@
         $('loansBtn').addEventListener('click', openLoans);
         $('lClose').addEventListener('click', function () { loansDlg.close(); });
         loansDlg.addEventListener('click', function (e) { if (e.target === loansDlg) loansDlg.close(); });
+        loansDlg.addEventListener('close', playFlash);
 
         // Reload what changed after a loan action: the book on the shelf, my loans, the overview.
         function refreshBook(bookId) {
@@ -1264,6 +1350,7 @@
             refreshLoanUi();
             send('POST', '/api/loans/', { book: book.id }).then(function (loan) {
                 loanNote = { text: 'Borrowed. Due ' + formatDate(loan.due_at) + '.', kind: 'ok' };
+                flash = { id: book.id, kind: 'pulled' };
                 return afterLoanChange(book.id);
             }).catch(function (err) { loanFailed(err, book.id); });
         }
@@ -1271,6 +1358,7 @@
         function returnLoan(loan) {
             send('POST', '/api/loans/' + loan.id + '/return/').then(function () {
                 loanNote = { text: 'Returned "' + loan.book_title + '". Thank you.', kind: 'ok' };
+                flash = { id: loan.book, kind: 'pushed' };
                 return afterLoanChange(loan.book);
             }).catch(function (err) { loanFailed(err, loan.book); });
         }
