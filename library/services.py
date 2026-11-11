@@ -4,9 +4,10 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Avg, Count, F
 from django.utils import timezone
 
-from .models import Book, Loan, Reservation
+from .models import Book, Favorite, Loan, Reservation
 
 logger = logging.getLogger(__name__)
 
@@ -260,3 +261,55 @@ def cancel_reservation(reservation_id, user):
     if was_ready:
         promote_next(reservation.book)
     return reservation
+
+
+# --- wish list and recommendations ---
+
+def set_favorite(user, book, wanted):
+    """Save or remove a book from the reader's wish list. Doing it twice is harmless. Returns True if the book is saved."""
+    if wanted:
+        Favorite.objects.get_or_create(user=user, book=book)
+    else:
+        Favorite.objects.filter(user=user, book=book).delete()
+    return wanted
+
+
+def recommendations(book, limit=6):
+    """Books to read next, as (book, reason) pairs.
+
+    readers  other readers who borrowed this book also borrowed it (counted, never names)
+    author   another book by the same author
+    genre    another book in the same genre
+    Each book appears once, under the first reason that applies, and better rated books come first
+    inside the author and genre groups.
+    """
+    picked = {}  # book id -> reason, in order
+
+    also = (
+        Loan.objects.filter(user__in=Loan.objects.filter(book=book).values("user"))
+        .exclude(book=book)
+        .values("book")
+        .annotate(readers=Count("user", distinct=True))
+        .order_by("-readers", "book")[:limit]
+    )
+    for row in also:
+        picked[row["book"]] = "readers"
+
+    def best_first(qs):
+        return qs.annotate(avg_rating=Avg("reviews__rating")).order_by(F("avg_rating").desc(nulls_last=True), "title")
+
+    groups = [("author", Book.objects.filter(author=book.author_id))]
+    if book.genre:
+        groups.append(("genre", Book.objects.filter(genre=book.genre)))
+    for reason, qs in groups:
+        for other in best_first(qs.exclude(pk=book.pk)).values_list("pk", flat=True)[:limit]:
+            if len(picked) >= limit:
+                break
+            picked.setdefault(other, reason)
+
+    ids = list(picked)[:limit]
+    found = {
+        b.pk: b
+        for b in Book.objects.filter(pk__in=ids).select_related("author").annotate(avg_rating=Avg("reviews__rating"))
+    }
+    return [(found[i], picked[i]) for i in ids if i in found]

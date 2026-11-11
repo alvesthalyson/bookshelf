@@ -1,5 +1,5 @@
 from django.shortcuts import render  # <-- IMPORT MOVIDO PARA O TOPO
-from django.db.models import Avg, Count, F, IntegerField, OuterRef, Subquery
+from django.db.models import Avg, BooleanField, Count, Exists, F, IntegerField, OuterRef, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django_filters.rest_framework import DjangoFilterBackend
@@ -11,10 +11,11 @@ from rest_framework.response import Response
 
 from .filters import NullsLastOrderingFilter
 from . import services
-from .models import Author, Book, Loan, Reservation, Review
+from .models import Author, Book, Favorite, Loan, Reservation, Review
 from .permissions import IsStaffOrReadOnly, ReadOrCreateForAnyone
 from .serializers import (
-    AuthorSerializer, BookSerializer, LoanSerializer, ReservationSerializer, ReviewSerializer,
+    AuthorSerializer, BookSerializer, LoanSerializer, RelatedBookSerializer, ReservationSerializer,
+    ReviewSerializer,
 )
 
 
@@ -63,6 +64,35 @@ class BookViewSet(viewsets.ModelViewSet):
     }
     search_fields = ["title", "author__name", "genre"]
     ordering_fields = ["published_year", "title", "created_at", "avg_rating"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.is_authenticated:
+            qs = qs.annotate(fav=Exists(Favorite.objects.filter(book=OuterRef("pk"), user=user)))
+        else:
+            qs = qs.annotate(fav=Value(False, output_field=BooleanField()))
+        # ?favorites=true shows only the books the reader saved (nothing for visitors)
+        if self.request.query_params.get("favorites") == "true":
+            qs = qs.filter(fav=True)
+        return qs
+
+    @action(detail=True, methods=["post", "delete"], permission_classes=[IsAuthenticated])
+    def favorite(self, request, pk=None):
+        """POST saves the book to the wish list, DELETE removes it. Both can be repeated safely."""
+        book = self.get_object()
+        saved = services.set_favorite(request.user, book, request.method == "POST")
+        return Response({"favorited": saved})
+
+    @action(detail=True, methods=["get"])
+    def related(self, request, pk=None):
+        """Books to read next: what other readers borrowed too, then the same author and genre."""
+        book = self.get_object()
+        items = []
+        for other, reason in services.recommendations(book):
+            other.reason = reason
+            items.append(other)
+        return Response(RelatedBookSerializer(items, many=True).data)
 
     # Holds that ran out are released when someone looks at the books (there is no background job).
     def list(self, request, *args, **kwargs):

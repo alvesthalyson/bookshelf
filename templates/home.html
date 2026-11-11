@@ -513,6 +513,25 @@
         .btn kbd { margin-left: 10px; border-color: currentColor; opacity: 0.7; }
         .keys { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 28px 0 0; padding: 0; color: var(--muted); font-size: 0.85rem; }
         @media (hover: none) { .keys, .btn kbd { display: none; } }
+        .fav-row { padding: 12px 0 0; }
+        #dFav[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+        .fav-mark {
+            position: absolute; top: 8px; right: 8px; z-index: 1;
+            font-size: 1.05rem; line-height: 1; color: #d6336c;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+        }
+        .related-wrap { padding: 4px 0 8px; border-bottom: 1px solid var(--line); }
+        .related-wrap h3 { margin-bottom: 10px; }
+        .related { list-style: none; margin: 0; padding: 0 0 10px; display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x proximity; }
+        .related li { flex: none; width: 104px; scroll-snap-align: start; }
+        .rel-card { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+        .rel-card .cover { width: 100%; padding: 8px 6px 6px 14px; aspect-ratio: 2 / 3; }
+        .rel-card .cover::before { width: 6px; }
+        .rel-card .cover .c-title { font-size: 0.68rem; -webkit-line-clamp: 4; overflow-wrap: anywhere; }
+        .rel-card .cover .c-author { display: none; }
+        .rel-card:hover .cover { transform: none; }
+        .rel-card .r-title { font-size: 0.85rem; font-weight: 700; line-height: 1.25; }
+        .rel-card .r-why { font-size: 0.75rem; color: var(--muted); line-height: 1.25; }
         .panel-head .nav { display: flex; align-items: center; gap: 8px; flex: none; }
     </style>
 </head>
@@ -582,6 +601,7 @@
                 </select>
             </label>
             <label class="check"><input type="checkbox" id="inStock"> <span data-i18n="in_stock_only">In stock only</span></label>
+            <label class="check" id="favField" hidden><input type="checkbox" id="favOnly"> <span data-i18n="fav_only">Wish list only</span></label>
         </form>
 
         <div class="status" aria-live="polite">
@@ -626,7 +646,13 @@
             <ul class="facts" id="dFacts"></ul>
             <p class="desc" id="dDesc" hidden></p>
             <div class="summary" id="dSummary"></div>
+            <div class="fav-row"><button class="btn ghost small" id="dFav" type="button" aria-pressed="false"></button></div>
             <div class="loan" id="dLoan"></div>
+
+            <section class="related-wrap" id="dRelWrap" hidden>
+                <h3 data-i18n="related_title">You may also like</h3>
+                <ul class="related" id="dRelated"></ul>
+            </section>
 
             <h3 data-i18n="reviews">Reviews</h3>
             <ul class="reviews" id="dReviews"></ul>
@@ -705,7 +731,7 @@
         'use strict';
 
         var PAGE_SIZE = 12; // keep in sync with PAGE_SIZE in config/settings.py
-        var state = { page: 1, search: '', author: '', genre: '', country: '', inStock: false, ordering: '-published_year' };
+        var state = { page: 1, search: '', author: '', genre: '', country: '', inStock: false, favorites: false, ordering: '-published_year' };
         var books = [];      // books on the current page
         var current = null;  // book open in the detail panel
         var user = null;     // { username, is_staff } when logged in
@@ -814,6 +840,9 @@
                 footer_api: 'Browse the API', footer_admin: 'Admin', footer_covers: 'Covers from Open Library',
                 key_search: 'Search', key_random: 'Surprise me', key_browse: 'Previous / next book',
                 prev_book: 'Previous book', next_book: 'Next book', close: 'Close', lang_label: 'Language',
+                fav_only: 'Wish list only', fav_save: 'Save to wish list', fav_saved: 'Saved to wish list', speak_saved: 'in your wish list',
+                fav_fail: 'Could not update your wish list. Try again.',
+                related_title: 'You may also like', rel_readers: 'Readers also borrowed', rel_author: 'Same author', rel_genre: 'Same genre',
                 reviews: 'Reviews', write_review: 'Write a review', your_name: 'Your name', your_rating: 'Your rating',
                 comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
                 username: 'Username', password: 'Password',
@@ -901,6 +930,9 @@
                 footer_api: 'APIを見る', footer_admin: '管理画面', footer_covers: '表紙：Open Library',
                 key_search: '検索', key_random: 'おまかせの一冊', key_browse: '前の本 / 次の本',
                 prev_book: '前の本', next_book: '次の本', close: '閉じる', lang_label: '言語',
+                fav_only: 'お気に入りのみ', fav_save: 'お気に入りに追加', fav_saved: 'お気に入りに追加済み', speak_saved: 'お気に入りに登録済み',
+                fav_fail: 'お気に入りを更新できませんでした。もう一度お試しください。',
+                related_title: 'こちらもおすすめ', rel_readers: 'この本を借りた人はこちらも', rel_author: '同じ著者', rel_genre: '同じジャンル',
                 reviews: 'レビュー', write_review: 'レビューを書く', your_name: 'お名前', your_rating: '評価',
                 comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
                 username: 'ユーザー名', password: 'パスワード',
@@ -988,6 +1020,9 @@
                 footer_api: 'Ver a API', footer_admin: 'Administração', footer_covers: 'Capas da Open Library',
                 key_search: 'Buscar', key_random: 'Surpreenda-me', key_browse: 'Livro anterior / próximo',
                 prev_book: 'Livro anterior', next_book: 'Próximo livro', close: 'Fechar', lang_label: 'Idioma',
+                fav_only: 'Só favoritos', fav_save: 'Salvar nos favoritos', fav_saved: 'Nos favoritos', speak_saved: 'nos seus favoritos',
+                fav_fail: 'Não foi possível atualizar seus favoritos. Tente de novo.',
+                related_title: 'Você também pode gostar', rel_readers: 'Quem leu este também pegou', rel_author: 'Mesmo autor', rel_genre: 'Mesmo gênero',
                 reviews: 'Resenhas', write_review: 'Escrever uma resenha', your_name: 'Seu nome', your_rating: 'Sua nota',
                 comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
                 username: 'Usuário', password: 'Senha',
@@ -1171,11 +1206,16 @@
             var cover = card.querySelector('.cover');
             var old = cover.querySelector('.badge');
             if (old) old.remove();
+            var oldMark = cover.querySelector('.fav-mark');
+            if (oldMark) oldMark.remove();
+            if (book.favorited) cover.append(el('span', { class: 'fav-mark', 'aria-hidden': 'true', text: '♥' }));
             var status = statusOf(book);
             cover.classList.toggle('has-badge', !!status);
             if (status) cover.append(el('span', { class: 'badge' + (status.mine ? ' mine' : ''), text: status.text }));
             var base = t('card_label', { title: book.title, author: book.author_name });
-            card.setAttribute('aria-label', status ? t('card_with_status', { base: base, status: status.speak }) : base);
+            var label = status ? t('card_with_status', { base: base, status: status.speak }) : base;
+            if (book.favorited) label = t('card_with_status', { base: label, status: t('speak_saved') });
+            card.setAttribute('aria-label', label);
         }
 
         // Refresh the strips on the cards that are already on screen. Re-drawing the shelf
@@ -1256,12 +1296,12 @@
         }
 
         function filtered() {
-            return !!(state.search || state.author || state.genre || state.country || state.inStock);
+            return !!(state.search || state.author || state.genre || state.country || state.inStock || state.favorites);
         }
 
         function clearFilters() {
-            state.search = ''; state.author = ''; state.genre = ''; state.country = ''; state.inStock = false; state.page = 1;
-            $('search').value = ''; $('author').value = ''; $('genre').value = ''; $('inStock').checked = false;
+            state.search = ''; state.author = ''; state.genre = ''; state.country = ''; state.inStock = false; state.favorites = false; state.page = 1;
+            $('search').value = ''; $('author').value = ''; $('genre').value = ''; $('inStock').checked = false; $('favOnly').checked = false;
             markCountry();
             go();
         }
@@ -1275,6 +1315,7 @@
             if (state.genre) params.set('genre', state.genre);
             if (state.country) params.set('author__country', state.country);
             if (state.inStock) params.set('in_stock', 'true');
+            if (state.favorites) params.set('favorites', 'true');
             shelf.setAttribute('aria-busy', 'true');
 
             return api('/api/books/?' + params, { signal: controller.signal }).then(function (data) {
@@ -1413,7 +1454,7 @@
 
         /* ---------- filters in the address bar ---------- */
 
-        var URL_KEYS = ['q', 'author', 'genre', 'country', 'stock', 'sort', 'page'];
+        var URL_KEYS = ['q', 'author', 'genre', 'country', 'stock', 'fav', 'sort', 'page'];
         var SORTS = ['-published_year', 'published_year', 'title', '-avg_rating'];
 
         // Read the filters from the address, ignoring anything that is not valid.
@@ -1425,6 +1466,7 @@
             state.genre = p.get('genre') || '';
             state.country = p.get('country') || '';
             state.inStock = p.get('stock') === '1';
+            state.favorites = p.get('fav') === '1';
             state.ordering = SORTS.indexOf(p.get('sort')) > -1 ? p.get('sort') : SORTS[0];
             state.page = page > 0 ? page : 1;
         }
@@ -1440,6 +1482,7 @@
                 if (state.genre) p.set('genre', state.genre);
                 if (state.country) p.set('country', state.country);
                 if (state.inStock) p.set('stock', '1');
+                if (state.favorites) p.set('fav', '1');
                 if (state.ordering !== SORTS[0]) p.set('sort', state.ordering);
                 if (state.page > 1) p.set('page', state.page);
                 var query = p.toString();
@@ -1455,6 +1498,7 @@
             $('genre').value = state.genre;
             $('ordering').value = state.ordering;
             $('inStock').checked = state.inStock;
+            $('favOnly').checked = state.favorites;
             markCountry();
         }
 
@@ -1477,6 +1521,7 @@
         $('author').addEventListener('change', function (e) { state.author = e.target.value; state.page = 1; go(); });
         $('genre').addEventListener('change', function (e) { state.genre = e.target.value; state.page = 1; go(); });
         $('ordering').addEventListener('change', function (e) { state.ordering = e.target.value; state.page = 1; go(); });
+        $('favOnly').addEventListener('change', function (e) { state.favorites = e.target.checked; state.page = 1; go(); });
         $('inStock').addEventListener('change', function (e) { state.inStock = e.target.checked; state.page = 1; go(); });
         $('prev').addEventListener('click', function () { state.page = Math.max(1, state.page - 1); go(); window.scrollTo({ top: 0 }); });
         $('next').addEventListener('click', function () { state.page += 1; go(); window.scrollTo({ top: 0 }); });
@@ -1503,6 +1548,7 @@
                     el('span', { class: 'big', text: book.average_rating.toFixed(1) }),
                     el('span', { class: 'stars', role: 'img', 'aria-label': ratingText(book), text: stars(book.average_rating) }));
             }
+            renderFavBtn(book);
             updateNav();
         }
 
@@ -1558,6 +1604,7 @@
             detail.scrollTop = 0;
             loadReviews(current.id);
             syncOpenBook(current.id);
+            loadRelated(current.id);
         }
 
         // The list on the page can be minutes old, and the line for a book moves. Ask again for the book that was just
@@ -1575,7 +1622,11 @@
 
         $('dClose').addEventListener('click', function () { detail.close(); });
         detail.addEventListener('click', function (e) { if (e.target === detail) detail.close(); });
-        detail.addEventListener('close', function () { current = null; playFlash(); });
+        detail.addEventListener('close', function () {
+            current = null;
+            playFlash();
+            if (favDirty) { favDirty = false; loadBooks(); } // a book left the wish list while only the wish list was shown
+        });
 
         function setMsg(text, kind) {
             var m = $('rMsg');
@@ -1633,6 +1684,7 @@
             $('whoName').hidden = !user;
             $('whoName').textContent = user ? t('signed_in', { name: user.username }) : '';
             $('loansBtn').hidden = !user;
+            $('favField').hidden = !user;
             $('authBtn').textContent = user ? t('logout') : t('login');
         }
 
@@ -1676,6 +1728,10 @@
                 if (loansDlg.open) loansDlg.close();
                 loanNote = null;
                 return applySession(session);
+            }).then(function () {
+                // the wish list belongs to the reader, so the shelf is loaded again without it
+                if (state.favorites) { state.favorites = false; state.page = 1; $('favOnly').checked = false; return go(true); }
+                return loadBooks();
             }).catch(function () {});
         });
         $('aClose').addEventListener('click', function () { authDlg.close(); });
@@ -1694,6 +1750,8 @@
                     authDlg.close();
                     return applySession(session).then(function () {
                         if (current && !$('rName').value) $('rName').value = user.username;
+                        if (current) syncOpenBook(current.id); // brings the "saved" state of the open book
+                        loadBooks();
                     });
                 })
                 .catch(function (err) {
@@ -1981,6 +2039,59 @@
             $('dNext').disabled = i < 0 || i >= books.length - 1;
         }
 
+        /* ---------- wish list ---------- */
+
+        var favDirty = false;
+
+        function renderFavBtn(book) {
+            var b = $('dFav');
+            b.setAttribute('aria-pressed', String(!!book.favorited));
+            b.textContent = (book.favorited ? '♥ ' : '♡ ') + (book.favorited ? t('fav_saved') : t('fav_save'));
+        }
+
+        function toggleFavorite() {
+            if (!current) return;
+            if (!user) { openAuth('login'); return; }
+            var book = current, wanted = !book.favorited;
+            send(wanted ? 'POST' : 'DELETE', '/api/books/' + book.id + '/favorite/').then(function (res) {
+                book.favorited = res.favorited;
+                books = books.map(function (b) { return b.id === book.id ? Object.assign({}, b, { favorited: res.favorited }) : b; });
+                if (current && current.id === book.id) { current.favorited = res.favorited; renderFavBtn(current); }
+                updateStatuses();
+                if (state.favorites) favDirty = true;
+            }).catch(function () {
+                loanNote = { text: t('fav_fail'), kind: 'error' };
+                refreshLoanUi();
+            });
+        }
+        $('dFav').addEventListener('click', toggleFavorite);
+
+        /* ---------- recommendations ---------- */
+
+        var related = [];
+
+        function renderRelated() {
+            var list = $('dRelated');
+            $('dRelWrap').hidden = !related.length;
+            list.replaceChildren.apply(list, related.map(function (r) {
+                return el('li', null,
+                    el('button', { class: 'rel-card', type: 'button', onclick: function () { openDetail(r.id); } },
+                        coverEl({ title: r.title, author_name: r.author_name, cover_url: r.cover_url }),
+                        el('span', { class: 'r-title', text: r.title }),
+                        el('span', { class: 'r-why', text: t('rel_' + r.reason) })));
+            }));
+        }
+
+        function loadRelated(id) {
+            related = [];
+            renderRelated();
+            api('/api/books/' + encodeURIComponent(id) + '/related/').then(function (items) {
+                if (!current || current.id !== id) return;
+                related = items;
+                renderRelated();
+            }).catch(function () {});
+        }
+
         function stepBook(delta) {
             var i = openIndex();
             var target = i < 0 ? null : books[i + delta];
@@ -2050,6 +2161,7 @@
             if (current) {
                 renderDetailHead(current);
                 renderLoanBox(current);
+                renderRelated();
                 setMsg('', '');
                 loadReviews(current.id);
             }

@@ -90,6 +90,25 @@ class Loan(models.Model):
         return f"{self.user} borrowed {self.book}"
 
 
+class Favorite(models.Model):
+    """A book a reader saved to read later (the wish list)."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorites"
+    )
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="favorites")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "book"], name="one_favorite_per_user_and_book"),
+        ]
+
+    def __str__(self):
+        return f"{self.user} saved {self.book}"
+
+
 class Reservation(models.Model):
     """A place in line for a book that is checked out. The line is first come, first served.
 

@@ -27,13 +27,14 @@ class BookSerializer(serializers.ModelSerializer):
     due_at = serializers.SerializerMethodField()
     queue_length = serializers.SerializerMethodField()
     held_until = serializers.SerializerMethodField()
+    favorited = serializers.SerializerMethodField()
 
     class Meta:
         model = Book
         fields = [
             "id", "title", "author", "author_name", "published_year",
             "isbn", "in_stock", "genre", "pages", "description", "cover_url",
-            "average_rating", "due_at", "queue_length", "held_until", "created_at",
+            "average_rating", "due_at", "queue_length", "held_until", "favorited", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 
@@ -55,6 +56,10 @@ class BookSerializer(serializers.ModelSerializer):
         value = getattr(obj, "held", None)
         return value.isoformat() if value is not None else None
 
+    def get_favorited(self, obj):
+        """True when the reader who is asking saved this book. Always false for visitors."""
+        return bool(getattr(obj, "fav", False))
+
     def validate_published_year(self, value):
         if value > date.today().year:
             raise serializers.ValidationError("published_year cannot be in the future.")
@@ -71,6 +76,24 @@ class BookSerializer(serializers.ModelSerializer):
         if not value.isdigit() or len(value) not in (10, 13):
             raise serializers.ValidationError("ISBN must be 10 or 13 digits.")
         return value
+
+
+class RelatedBookSerializer(serializers.Serializer):
+    """A short card for the recommendations under a book."""
+
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    author_name = serializers.CharField(source="author.name")
+    published_year = serializers.IntegerField()
+    isbn = serializers.CharField(allow_null=True)
+    cover_url = serializers.CharField(allow_blank=True)
+    in_stock = serializers.BooleanField()
+    average_rating = serializers.SerializerMethodField()
+    reason = serializers.CharField()
+
+    def get_average_rating(self, obj):
+        value = getattr(obj, "avg_rating", None)
+        return round(value, 1) if value is not None else None
 
 
 class ReviewSerializer(serializers.ModelSerializer):
