@@ -12,6 +12,7 @@ router.register("reservations", views.ReservationViewSet, basename="reservation"
 
 urlpatterns = [
     path("stats/", views.stats, name="stats"),
+    path("staff/overview/", views.staff_overview, name="staff-overview"),
     path("auth/me/", auth_views.me, name="auth-me"),
     path("auth/login/", auth_views.login_view, name="auth-login"),
     path("auth/logout/", auth_views.logout_view, name="auth-logout"),

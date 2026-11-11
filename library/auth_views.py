@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
-from . import services
+from . import fines, services
 
 USERNAME_RE = re.compile(r"^[\w.@+-]{3,30}$")
 
@@ -32,6 +32,14 @@ def _session(request):
             "max_renewals": services.max_renewals(),
             "hold_days": services.hold_days(),
             "max_active_reservations": services.max_active_reservations(),
+            "fine_per_day": fines.per_day(),
+            "fine_max_per_loan": fines.max_per_loan(),
+            "fine_currency": fines.currency(),
+        },
+        # unpaid: owed for books already returned late (blocks new loans). accruing: growing on books still out.
+        "fines": {
+            "unpaid": services.unpaid_fines_total(user) if user.is_authenticated else 0,
+            "accruing": services.accruing_fines_total(user) if user.is_authenticated else 0,
         },
     }
     return data

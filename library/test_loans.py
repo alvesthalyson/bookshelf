@@ -55,7 +55,11 @@ class LoanServiceTests(TestCase):
         with self.assertRaises(services.OverdueLoansError):
             services.create_loan(self.ana, self.books[1])
         services.return_loan(loan.pk, self.ana)
-        services.create_loan(self.ana, self.books[1])  # allowed again after returning
+        # a full day late means a late fee, which has to be paid first (see test_fines.py)
+        with self.assertRaises(services.UnpaidFinesError):
+            services.create_loan(self.ana, self.books[1])
+        Loan.objects.filter(pk=loan.pk).update(due_at=timezone.now() - timedelta(hours=1))  # under a full day: no fee
+        services.create_loan(self.ana, self.books[1])
 
     def test_return_makes_the_book_available_again(self):
         loan = services.create_loan(self.ana, self.books[0])
@@ -209,6 +213,7 @@ class AuthApiTests(TestCase):
         self.assertEqual(d["rules"], {
             "loan_days": 14, "max_active_loans": 3, "max_renewals": 2,
             "hold_days": 3, "max_active_reservations": 3,
+            "fine_per_day": 50, "fine_max_per_loan": 1000, "fine_currency": "JPY",
         })
 
     def test_register_login_logout(self):

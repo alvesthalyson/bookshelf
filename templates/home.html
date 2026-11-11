@@ -513,6 +513,16 @@
         .btn kbd { margin-left: 10px; border-color: currentColor; opacity: 0.7; }
         .keys { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 28px 0 0; padding: 0; color: var(--muted); font-size: 0.85rem; }
         @media (hover: none) { .keys, .btn kbd { display: none; } }
+        .fine-box { margin: 14px 0 4px; padding: 12px 14px; border: 1px solid #c0392b; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
+        :root[data-theme="dark"] .fine-box { border-color: #ff8a7a; }
+        .fine-box p { margin: 0; }
+        .fine-box ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.92rem; }
+        .staff-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin: 16px 0 6px; }
+        .staff-totals dt { color: var(--muted); font-size: 0.85rem; }
+        .staff-totals dd { margin: 0; font-family: var(--display); font-weight: 800; font-size: 1.7rem; line-height: 1.1; }
+        .top-list { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; }
+        .line-readers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+        .loan-list .line-readers li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: 0; flex-direction: row; }
         .fav-row { padding: 12px 0 0; }
         #dFav[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
         .fav-mark {
@@ -542,6 +552,7 @@
             <div class="account">
                 <span class="who" id="whoName" hidden></span>
                 <button class="btn ghost small" id="loansBtn" type="button" hidden data-i18n="my_loans">My loans</button>
+                <button class="btn ghost small" id="staffBtn" type="button" hidden data-i18n="staff_btn">Librarian</button>
                 <button class="btn ghost small" id="authBtn" type="button">Log in</button>
                 <select class="lang-select" id="langSel" data-i18n-aria-label="lang_label" aria-label="Language">
                     <option value="ja" lang="ja">日本語</option>
@@ -715,6 +726,7 @@
             </div>
             <p class="by" id="lRules"></p>
             <div class="msg" id="lMsg" role="status"></div>
+            <div class="fine-box" id="lFines" hidden></div>
             <h3 data-i18n="on_loan">On loan</h3>
             <ul class="loan-list" id="lActive"></ul>
             <h3 data-i18n="reservations">Reservations</h3>
@@ -722,6 +734,25 @@
             <h3 data-i18n="returned">Returned</h3>
             <ul class="loan-list" id="lHistory"></ul>
             <p class="muted" id="lMore" hidden></p>
+        </div>
+    </dialog>
+
+    <dialog id="staffDlg" class="side" aria-labelledby="stTitle">
+        <div class="panel">
+            <div class="panel-head">
+                <h2 id="stTitle" data-i18n="staff_title">Librarian desk</h2>
+                <button class="btn ghost" id="stClose" type="button" data-i18n="close">Close</button>
+            </div>
+            <div class="msg" id="stMsg" role="status"></div>
+            <dl class="staff-totals" id="stTotals"></dl>
+            <h3 data-i18n="staff_late">Late books</h3>
+            <ul class="loan-list" id="stLate"></ul>
+            <h3 data-i18n="staff_unpaid">Unpaid late fees</h3>
+            <ul class="loan-list" id="stUnpaid"></ul>
+            <h3 data-i18n="staff_lines">Lines for books</h3>
+            <ul class="loan-list" id="stLines"></ul>
+            <h3 data-i18n="staff_top">Most borrowed</h3>
+            <ol class="top-list" id="stTop"></ol>
         </div>
     </dialog>
 
@@ -743,6 +774,8 @@
         var enterTimer;
         var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
         var controller = null;
+        var fines = { unpaid: 0, accruing: 0 }; // late fees: owed for returned books, and growing on late books still out
+        var myFines = [];     // my returned loans with an unpaid fee
         var myRes = [];       // my active reservations (places in line)
         var listState = null; // what the last book request gave: { kind, count, pages, hasPrev, hasNext }
         var lastStats = null; // last answer of /api/stats/, drawn again when the language changes
@@ -843,6 +876,20 @@
                 fav_only: 'Wish list only', fav_save: 'Save to wish list', fav_saved: 'Saved to wish list', speak_saved: 'in your wish list',
                 fav_fail: 'Could not update your wish list. Try again.',
                 related_title: 'You may also like', rel_readers: 'Readers also borrowed', rel_author: 'Same author', rel_genre: 'Same genre',
+                fines_owed: 'You owe {amount} in late fees. Ask a librarian to settle it, then you can borrow again.',
+                fines_accruing: 'Your late books are adding {amount} in late fees so far. Return them to stop the fee.',
+                late_days_one: '{n} day late', late_days_many: '{n} days late', fine_so_far: 'Late fee so far: {amount}',
+                fine_line: 'Late fee {amount}', fine_paid: 'paid', fine_unpaid: 'unpaid',
+                err_unpaid_fines: 'You have unpaid late fees ({amount}). Ask a librarian to settle them before you borrow again.',
+                err_staff_only: 'Only librarians can do this.', err_no_fine: 'This loan has no late fee.',
+                err_fine_already_paid: 'This late fee is already paid.', err_loan_still_active: 'The book has not been returned yet. Return it first.',
+                staff_btn: 'Librarian', staff_title: 'Librarian desk', staff_late: 'Late books', staff_unpaid: 'Unpaid late fees',
+                staff_lines: 'Lines for books', staff_top: 'Most borrowed',
+                t_active: 'On loan now', t_late: 'Late', t_fees: 'Fees owed', t_lines: 'People in lines',
+                staff_empty_late: 'No late books.', staff_empty_unpaid: 'No unpaid fees.', staff_empty_lines: 'No one is waiting for a book.', staff_empty_top: 'No loans yet.',
+                due_by: '{name}, due {date}', returned_by: '{name}, returned {date}', mark_paid: 'Mark as paid', staff_return: 'Return', staff_remove: 'Remove',
+                paid_ok: 'Payment recorded.', return_ok: 'Book returned.', remove_ok: 'Removed from the line.', staff_fail: 'Could not load the librarian desk.',
+                loans_count_one: '{n} loan', loans_count_many: '{n} loans', line_ready: 'ready until {date}', line_waiting: 'waiting',
                 reviews: 'Reviews', write_review: 'Write a review', your_name: 'Your name', your_rating: 'Your rating',
                 comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
                 username: 'Username', password: 'Password',
@@ -933,6 +980,20 @@
                 fav_only: 'お気に入りのみ', fav_save: 'お気に入りに追加', fav_saved: 'お気に入りに追加済み', speak_saved: 'お気に入りに登録済み',
                 fav_fail: 'お気に入りを更新できませんでした。もう一度お試しください。',
                 related_title: 'こちらもおすすめ', rel_readers: 'この本を借りた人はこちらも', rel_author: '同じ著者', rel_genre: '同じジャンル',
+                fines_owed: '延滞料{amount}をお支払いいただく必要があります。司書に支払いを済ませると、また借りられます。',
+                fines_accruing: '延滞中の本の延滞料が、現在{amount}になっています。返却すると増えなくなります。',
+                late_days_one: '{n}日遅れ', late_days_many: '{n}日遅れ', fine_so_far: '現在の延滞料：{amount}',
+                fine_line: '延滞料 {amount}', fine_paid: '支払い済み', fine_unpaid: '未払い',
+                err_unpaid_fines: '延滞料（{amount}）が未払いです。司書に支払いを済ませてから借りてください。',
+                err_staff_only: 'この操作は司書のみ行えます。', err_no_fine: 'この貸出に延滞料はありません。',
+                err_fine_already_paid: 'この延滞料はすでに支払い済みです。', err_loan_still_active: '本がまだ返却されていません。先に返却してください。',
+                staff_btn: '司書', staff_title: '司書デスク', staff_late: '延滞中の本', staff_unpaid: '未払いの延滞料',
+                staff_lines: '予約の順番待ち', staff_top: 'よく借りられた本',
+                t_active: '貸出中', t_late: '延滞', t_fees: '未払い料金', t_lines: '順番待ちの人数',
+                staff_empty_late: '延滞中の本はありません。', staff_empty_unpaid: '未払いの延滞料はありません。', staff_empty_lines: '順番待ちをしている人はいません。', staff_empty_top: 'まだ貸出がありません。',
+                due_by: '{name}さん・返却期限 {date}', returned_by: '{name}さん・{date}に返却', mark_paid: '支払い済みにする', staff_return: '返却', staff_remove: '外す',
+                paid_ok: '支払いを記録しました。', return_ok: '返却しました。', remove_ok: '順番待ちから外しました。', staff_fail: '司書デスクを読み込めませんでした。',
+                loans_count_one: '貸出{n}回', loans_count_many: '貸出{n}回', line_ready: '{date}まで取り置き', line_waiting: '順番待ち',
                 reviews: 'レビュー', write_review: 'レビューを書く', your_name: 'お名前', your_rating: '評価',
                 comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
                 username: 'ユーザー名', password: 'パスワード',
@@ -1023,6 +1084,20 @@
                 fav_only: 'Só favoritos', fav_save: 'Salvar nos favoritos', fav_saved: 'Nos favoritos', speak_saved: 'nos seus favoritos',
                 fav_fail: 'Não foi possível atualizar seus favoritos. Tente de novo.',
                 related_title: 'Você também pode gostar', rel_readers: 'Quem leu este também pegou', rel_author: 'Mesmo autor', rel_genre: 'Mesmo gênero',
+                fines_owed: 'Você deve {amount} de multa por atraso. Peça a um bibliotecário para quitar e depois poderá pegar livros de novo.',
+                fines_accruing: 'Seus livros atrasados já somam {amount} de multa. Devolva-os para parar a cobrança.',
+                late_days_one: '{n} dia de atraso', late_days_many: '{n} dias de atraso', fine_so_far: 'Multa até agora: {amount}',
+                fine_line: 'Multa {amount}', fine_paid: 'paga', fine_unpaid: 'em aberto',
+                err_unpaid_fines: 'Você tem multas em aberto ({amount}). Peça a um bibliotecário para quitá-las antes de pegar outro livro.',
+                err_staff_only: 'Só bibliotecários podem fazer isso.', err_no_fine: 'Este empréstimo não tem multa.',
+                err_fine_already_paid: 'Esta multa já foi paga.', err_loan_still_active: 'O livro ainda não foi devolvido. Devolva-o primeiro.',
+                staff_btn: 'Bibliotecário', staff_title: 'Mesa do bibliotecário', staff_late: 'Livros atrasados', staff_unpaid: 'Multas em aberto',
+                staff_lines: 'Filas de livros', staff_top: 'Mais emprestados',
+                t_active: 'Emprestados agora', t_late: 'Atrasados', t_fees: 'Multas em aberto', t_lines: 'Pessoas em filas',
+                staff_empty_late: 'Nenhum livro atrasado.', staff_empty_unpaid: 'Nenhuma multa em aberto.', staff_empty_lines: 'Ninguém está esperando por um livro.', staff_empty_top: 'Ainda não há empréstimos.',
+                due_by: '{name}, devolver até {date}', returned_by: '{name}, devolveu em {date}', mark_paid: 'Marcar como paga', staff_return: 'Devolver', staff_remove: 'Remover',
+                paid_ok: 'Pagamento registrado.', return_ok: 'Livro devolvido.', remove_ok: 'Removido da fila.', staff_fail: 'Não foi possível carregar a mesa do bibliotecário.',
+                loans_count_one: '{n} empréstimo', loans_count_many: '{n} empréstimos', line_ready: 'pronto até {date}', line_waiting: 'aguardando',
                 reviews: 'Resenhas', write_review: 'Escrever uma resenha', your_name: 'Seu nome', your_rating: 'Sua nota',
                 comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
                 username: 'Usuário', password: 'Senha',
@@ -1685,6 +1760,7 @@
             $('whoName').textContent = user ? t('signed_in', { name: user.username }) : '';
             $('loansBtn').hidden = !user;
             $('favField').hidden = !user;
+            $('staffBtn').hidden = !(user && user.is_staff);
             $('authBtn').textContent = user ? t('logout') : t('login');
         }
 
@@ -1710,11 +1786,13 @@
 
         function applySession(session) {
             rules = Object.assign({}, rules, session.rules);
+            fines = session.fines || { unpaid: 0, accruing: 0 };
             user = session.authenticated ? { username: session.username, is_staff: session.is_staff } : null;
             renderAccount();
             if (user) return Promise.all([loadMyLoans(), loadMyReservations()]);
             myLoans = [];
             myRes = [];
+            myFines = [];
             refreshLoanUi();
         }
 
@@ -1726,6 +1804,8 @@
             if (!user) { openAuth('login'); return; }
             send('POST', '/api/auth/logout/').then(function (session) {
                 if (loansDlg.open) loansDlg.close();
+                if (staffDlg.open) staffDlg.close();
+                staffData = null;
                 loanNote = null;
                 return applySession(session);
             }).then(function () {
@@ -1780,6 +1860,22 @@
 
         /* ---------- loans: borrow, renew, return ---------- */
 
+        function money(n) {
+            try {
+                return new Intl.NumberFormat(LOCALES[lang], { style: 'currency', currency: rules.fine_currency || 'JPY', maximumFractionDigits: 0 }).format(n);
+            } catch (e) { return String(n); }
+        }
+
+        // The sums come with the session. The list of unpaid loans is only needed by the My loans panel.
+        function refreshFines() {
+            if (!user) return Promise.resolve();
+            return api('/api/auth/me/').then(function (session) {
+                fines = session.fines || fines;
+                if (!loansDlg.open) { refreshLoanUi(); return; }
+                return api('/api/loans/?mine=true&fines=unpaid').then(function (data) { myFines = data.results; refreshLoanUi(); });
+            }).catch(function () {});
+        }
+
         function loanFor(bookId) {
             return myLoans.filter(function (l) { return l.book === bookId; })[0];
         }
@@ -1808,9 +1904,10 @@
             var mine = loanFor(book.id);
             var res = user ? resFor(book.id) : null;
             var fullLoans = !!user && myLoans.length >= rules.max_active_loans;
+            var owes = !!user && fines.unpaid > 0; // unpaid late fees block new loans
             var kids = [];
             function borrowBtn() {
-                return el('button', { class: 'btn', type: 'button', text: t('borrow_btn', { days: rules.loan_days }), disabled: fullLoans, onclick: function () { borrowBook(book); } });
+                return el('button', { class: 'btn', type: 'button', text: t('borrow_btn', { days: rules.loan_days }), disabled: fullLoans || owes, onclick: function () { borrowBook(book); } });
             }
             function cancelBtn(label) {
                 return el('button', { class: 'btn ghost', type: 'button', text: label, onclick: function () { cancelReservation(res); } });
@@ -1829,6 +1926,7 @@
                 kids.push(el('div', { text: t('res_ready_text', { date: formatDate(res.expires_at) }) }));
                 kids.push(el('div', { class: 'row' }, borrowBtn(), cancelBtn(t('res_cancel'))));
                 if (fullLoans) kids.push(el('div', { class: 'muted', text: t('loan_full', { n: myLoans.length }) }));
+                if (owes) kids.push(el('div', { class: 'muted', text: t('fines_owed', { amount: money(fines.unpaid) }) }));
             } else if (res) {
                 kids.push(el('div', { class: 'loan-title', text: t('res_wait_title') }));
                 kids.push(el('div', { text: t('res_position', { n: res.position }) }));
@@ -1841,6 +1939,7 @@
                 } else {
                     kids.push(el('div', null, borrowBtn()));
                     if (fullLoans) kids.push(el('div', { class: 'muted', text: t('loan_full', { n: myLoans.length }) }));
+                    if (owes) kids.push(el('div', { class: 'muted', text: t('fines_owed', { amount: money(fines.unpaid) }) }));
                 }
             } else {
                 var held = book.in_stock; // on the shelf, but kept for the first reader in line
@@ -1866,6 +1965,18 @@
             $('lMsg').textContent = loanNote ? loanNote.text : '';
             $('lMsg').className = 'msg' + (loanNote ? ' ' + loanNote.kind : '');
 
+            var box = $('lFines');
+            var banner = [];
+            if (fines.unpaid > 0) {
+                banner.push(el('p', null, el('strong', { text: t('fines_owed', { amount: money(fines.unpaid) }) })));
+                banner.push(el.apply(null, ['ul', null].concat(myFines.map(function (loan) {
+                    return el('li', { text: loan.book_title + ': ' + tn('late_days', loan.days_late) + ', ' + money(loan.fine) });
+                }))));
+            }
+            if (fines.accruing > 0) banner.push(el('p', { text: t('fines_accruing', { amount: money(fines.accruing) }) }));
+            box.hidden = !banner.length;
+            box.replaceChildren.apply(box, banner);
+
             var list = $('lActive');
             if (!myLoans.length) {
                 list.replaceChildren(el('li', { class: 'muted', text: t('no_loans') }));
@@ -1876,6 +1987,7 @@
                         el('span', { class: 'muted', text: t('by_author', { name: loan.author_name }) }),
                         el('span', null, t('due') + ' ', el('strong', { text: formatDate(loan.due_at) }), overdueTag(loan),
                             loan.renewals ? el('span', { class: 'muted', text: tn('renewed', loan.renewals) }) : null),
+                        loan.fine > 0 ? el('span', { class: 'muted', text: tn('late_days', loan.days_late) + ' · ' + t('fine_so_far', { amount: money(loan.fine) }) }) : null,
                         el('div', { class: 'row' },
                             el('button', { class: 'btn ghost small', type: 'button', text: t('renew'), disabled: !canRenew(loan), onclick: function () { renewLoan(loan); } }),
                             el('button', { class: 'btn small', type: 'button', text: t('return'), onclick: function () { returnLoan(loan); } })));
@@ -1911,7 +2023,8 @@
                 list.replaceChildren.apply(list, data.results.map(function (loan) {
                     return el('li', null,
                         el('span', { class: 't', text: loan.book_title }),
-                        el('span', { class: 'muted', text: t('hist_line', { a: formatDate(loan.borrowed_at), b: formatDate(loan.returned_at) }) }));
+                        el('span', { class: 'muted', text: t('hist_line', { a: formatDate(loan.borrowed_at), b: formatDate(loan.returned_at) }) }),
+                        loan.fine > 0 ? el('span', { class: 'muted', text: t('fine_line', { amount: money(loan.fine) }) + ' (' + (loan.fine_is_unpaid ? t('fine_unpaid') : t('fine_paid')) + ')' }) : null);
                 }));
                 more.hidden = data.count <= data.results.length;
                 more.textContent = t('hist_more', { shown: data.results.length, count: data.count });
@@ -1934,6 +2047,7 @@
             loansDlg.scrollTop = 0;
             loadMyLoans();
             loadMyReservations();
+            refreshFines();
             loadLoanHistory();
         }
         $('loansBtn').addEventListener('click', openLoans);
@@ -1951,7 +2065,7 @@
         }
 
         function afterLoanChange(bookId) {
-            var jobs = [refreshBook(bookId).catch(function () {}), loadMyLoans(), loadMyReservations(), loadStats()];
+            var jobs = [refreshBook(bookId).catch(function () {}), loadMyLoans(), loadMyReservations(), refreshFines(), loadStats()];
             if (loansDlg.open) jobs.push(loadLoanHistory());
             return Promise.all(jobs);
         }
@@ -1963,7 +2077,7 @@
                 loanNote = { text: t('session_login'), kind: 'error' };
                 loadSession();
             } else if (code || (err.data && err.data.detail)) {
-                var params = { max: code === 'renewal_limit' ? rules.max_renewals : code === 'reservation_limit' ? rules.max_active_reservations : rules.max_active_loans };
+                var params = { amount: money(fines.unpaid), max: code === 'renewal_limit' ? rules.max_renewals : code === 'reservation_limit' ? rules.max_active_reservations : rules.max_active_loans };
                 loanNote = { text: (code && errorText(code, params)) || err.data.detail, kind: 'error' };
                 if (err.status === 409) afterLoanChange(bookId); // the page was out of date, so sync it
             } else {
@@ -2026,6 +2140,96 @@
                 return afterLoanChange(r.book);
             }).catch(function (err) { loanFailed(err, r.book); });
         }
+
+        /* ---------- librarian desk (staff only) ---------- */
+
+        var staffDlg = $('staffDlg');
+        var staffData = null;
+
+        function stNote(text, kind) {
+            $('stMsg').textContent = text || '';
+            $('stMsg').className = 'msg' + (kind ? ' ' + kind : '');
+        }
+
+        function stEmpty(key) { return [el('li', { class: 'muted', text: t(key) })]; }
+
+        function renderStaff() {
+            var d = staffData;
+            if (!d) return;
+            var cells = [['t_active', d.totals.active_loans], ['t_late', d.totals.late_loans],
+                         ['t_fees', money(d.totals.unpaid_fines)], ['t_lines', d.totals.people_in_lines]];
+            var totals = $('stTotals');
+            totals.replaceChildren.apply(totals, cells.map(function (c) {
+                return el('div', null, el('dt', { text: t(c[0]) }), el('dd', { text: String(c[1]) }));
+            }));
+
+            var late = $('stLate');
+            late.replaceChildren.apply(late, d.late.length ? d.late.map(function (loan) {
+                return el('li', null,
+                    el('span', { class: 't', text: loan.book_title }),
+                    el('span', { class: 'muted', text: t('due_by', { name: loan.username, date: formatDate(loan.due_at) }) }),
+                    el('span', { text: tn('late_days', loan.days_late) + (loan.fine ? ' · ' + t('fine_so_far', { amount: money(loan.fine) }) : '') }),
+                    el('div', { class: 'row' }, el('button', { class: 'btn small', type: 'button', text: t('staff_return'),
+                        onclick: function () { staffAct('POST', '/api/loans/' + loan.id + '/return/', 'return_ok'); } })));
+            }) : stEmpty('staff_empty_late'));
+
+            var unpaid = $('stUnpaid');
+            unpaid.replaceChildren.apply(unpaid, d.unpaid.length ? d.unpaid.map(function (loan) {
+                return el('li', null,
+                    el('span', { class: 't', text: loan.book_title }),
+                    el('span', { class: 'muted', text: t('returned_by', { name: loan.username, date: formatDate(loan.returned_at) }) }),
+                    el('span', { text: tn('late_days', loan.days_late) + ' · ' + money(loan.fine) }),
+                    el('div', { class: 'row' }, el('button', { class: 'btn small', type: 'button', text: t('mark_paid'),
+                        onclick: function () { staffAct('POST', '/api/loans/' + loan.id + '/pay-fine/', 'paid_ok'); } })));
+            }) : stEmpty('staff_empty_unpaid'));
+
+            var lines = $('stLines');
+            lines.replaceChildren.apply(lines, d.lines.length ? d.lines.map(function (line) {
+                return el('li', null,
+                    el('span', { class: 't', text: line.book_title }),
+                    el.apply(null, ['ul', { class: 'line-readers' }].concat(line.readers.map(function (r) {
+                        var state = r.status === 'ready' ? t('line_ready', { date: formatDate(r.expires_at) }) : t('line_waiting');
+                        return el('li', null,
+                            el('span', { text: r.position + '. ' + r.username + ' (' + state + ')' }),
+                            el('button', { class: 'btn ghost small', type: 'button', text: t('staff_remove'),
+                                onclick: function () { staffAct('POST', '/api/reservations/' + r.reservation + '/cancel/', 'remove_ok'); } }));
+                    }))));
+            }) : stEmpty('staff_empty_lines'));
+
+            var top = $('stTop');
+            top.replaceChildren.apply(top, d.top_borrowed.length ? d.top_borrowed.map(function (b) {
+                return el('li', { text: b.title + ' · ' + tn('loans_count', b.loan_count) });
+            }) : stEmpty('staff_empty_top'));
+        }
+
+        function loadStaff() {
+            return api('/api/staff/overview/').then(function (d) { staffData = d; renderStaff(); })
+                .catch(function () { stNote(t('staff_fail'), 'error'); });
+        }
+
+        // Do something for a reader, then show the new numbers and bring the shelf up to date.
+        function staffAct(method, path, okKey) {
+            send(method, path).then(function () {
+                stNote(t(okKey), 'ok');
+                loadBooks();
+                loadStats();
+                return loadStaff();
+            }).catch(function (err) {
+                var code = err.data && err.data.code;
+                stNote((code && errorText(code)) || (err.data && err.data.detail) || t('generic_fail'), 'error');
+                loadStaff();
+            });
+        }
+
+        $('staffBtn').addEventListener('click', function () {
+            stNote('', '');
+            if (staffData) renderStaff();
+            if (!staffDlg.open) staffDlg.showModal();
+            staffDlg.scrollTop = 0;
+            loadStaff();
+        });
+        $('stClose').addEventListener('click', function () { staffDlg.close(); });
+        staffDlg.addEventListener('click', function (e) { if (e.target === staffDlg) staffDlg.close(); });
 
         /* ---------- keyboard shortcuts, previous/next book, Surprise me ---------- */
 
@@ -2131,7 +2335,7 @@
                 else if (e.key === 'ArrowRight') { e.preventDefault(); stepBook(1); }
                 return;
             }
-            if (loansDlg.open) return;
+            if (loansDlg.open || staffDlg.open) return;
             if (e.key === '/') { e.preventDefault(); $('search').focus(); $('search').select(); }
             else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); surprise(); }
         });
@@ -2166,6 +2370,7 @@
                 loadReviews(current.id);
             }
             if (loansDlg.open) { renderLoansPanel(); loadLoanHistory(); }
+            if (staffDlg.open) { stNote('', ''); renderStaff(); }
         }
         $('langSel').addEventListener('change', function (e) { setLang(e.target.value); });
 

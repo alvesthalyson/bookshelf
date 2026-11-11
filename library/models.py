@@ -2,6 +2,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from . import fines
+
 
 class Author(models.Model):
     name = models.CharField(max_length=100)
@@ -53,6 +55,18 @@ class Review(models.Model):
         return f"{self.reviewer_name} on {self.book}: {self.rating}/5"
 
 
+class LoanQuerySet(models.QuerySet):
+    def with_unpaid_fines(self):
+        """Returned loans that were at least a full day late and whose fine has not been paid."""
+        if fines.per_day() <= 0:
+            return self.none()
+        return self.filter(
+            returned_at__isnull=False,
+            fine_paid_at__isnull=True,
+            returned_at__gte=models.F("due_at") + fines.one_day(),
+        )
+
+
 class Loan(models.Model):
     """A book borrowed by a user. returned_at stays empty while the loan is active."""
 
@@ -66,6 +80,10 @@ class Loan(models.Model):
     due_at = models.DateTimeField()
     returned_at = models.DateTimeField(null=True, blank=True)
     renewals = models.PositiveSmallIntegerField(default=0)
+    # set by a librarian when the late fee has been paid
+    fine_paid_at = models.DateTimeField(null=True, blank=True)
+
+    objects = LoanQuerySet.as_manager()
 
     class Meta:
         ordering = ["-borrowed_at"]
@@ -85,6 +103,19 @@ class Loan(models.Model):
     @property
     def is_overdue(self):
         return self.is_active and self.due_at < timezone.now()
+
+    @property
+    def days_late(self):
+        return fines.days_late(self.due_at, self.returned_at)
+
+    @property
+    def fine(self):
+        """The late fee so far. It stops growing when the book is returned."""
+        return fines.amount_for(self.days_late)
+
+    @property
+    def fine_is_unpaid(self):
+        return self.returned_at is not None and self.fine > 0 and self.fine_paid_at is None
 
     def __str__(self):
         return f"{self.user} borrowed {self.book}"

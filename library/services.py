@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import Avg, Count, F
 from django.utils import timezone
 
+from . import fines
 from .models import Book, Favorite, Loan, Reservation
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,27 @@ class ReservationLimitError(LoanError):
     code = "reservation_limit"
 
 
+class UnpaidFinesError(LoanError):
+    code = "unpaid_fines"
+
+
+class NoFineError(LoanError):
+    code = "no_fine"
+
+
+class FineAlreadyPaidError(LoanError):
+    code = "fine_already_paid"
+
+
+class LoanStillActiveError(LoanError):
+    code = "loan_still_active"
+
+
+class StaffOnlyError(LoanError):
+    status_code = 403
+    code = "staff_only"
+
+
 class ReservationNotActiveError(LoanError):
     code = "reservation_not_active"
 
@@ -119,6 +141,10 @@ def create_loan(user, book):
     hold = Reservation.objects.filter(book=book, status=Reservation.READY).first()
     if hold is not None and hold.user_id != user.id:
         raise BookReservedError("This book is held for another reader. You can join the line to borrow it next.")
+    if unpaid_fines_total(user) > 0:
+        raise UnpaidFinesError(
+            f"You have unpaid late fees ({unpaid_fines_total(user)}). Ask a librarian to settle them before you borrow again."
+        )
     if _active_loans(user).filter(due_at__lt=now).exists():
         raise OverdueLoansError("Return your overdue books before borrowing another one.")
     if _active_loans(user).count() >= max_active_loans():
@@ -313,3 +339,32 @@ def recommendations(book, limit=6):
         for b in Book.objects.filter(pk__in=ids).select_related("author").annotate(avg_rating=Avg("reviews__rating"))
     }
     return [(found[i], picked[i]) for i in ids if i in found]
+
+
+# --- late fees ---
+
+def unpaid_fines_total(user):
+    """What the reader owes for books that already came back late."""
+    return sum(loan.fine for loan in Loan.objects.with_unpaid_fines().filter(user=user))
+
+
+def accruing_fines_total(user):
+    """The fee growing right now on books that are still out and late. It becomes a debt when they are returned."""
+    return sum(loan.fine for loan in _active_loans(user).filter(due_at__lt=timezone.now()))
+
+
+@transaction.atomic
+def pay_fine(loan_id, staff_user):
+    """A librarian records that the reader paid the late fee of a returned loan."""
+    if not staff_user.is_staff:
+        raise StaffOnlyError("Only librarians can record a payment.")
+    loan = Loan.objects.select_for_update().select_related("book", "user").get(pk=loan_id)
+    if loan.returned_at is None:
+        raise LoanStillActiveError("The book has not been returned yet. Return it first.")
+    if loan.fine_paid_at is not None:
+        raise FineAlreadyPaidError("This late fee is already paid.")
+    if loan.fine <= 0:
+        raise NoFineError("This loan has no late fee.")
+    loan.fine_paid_at = timezone.now()
+    loan.save(update_fields=["fine_paid_at"])
+    return loan

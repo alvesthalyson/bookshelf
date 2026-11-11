@@ -1,4 +1,5 @@
 from django.shortcuts import render  # <-- IMPORT MOVIDO PARA O TOPO
+from django.utils import timezone
 from django.db.models import Avg, BooleanField, Count, Exists, F, IntegerField, OuterRef, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -6,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.filters import SearchFilter
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from .filters import NullsLastOrderingFilter
@@ -132,11 +133,23 @@ class LoanViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Retriev
             qs = qs.filter(returned_at__isnull=True)
         elif active == "false":
             qs = qs.filter(returned_at__isnull=False)
+        if params.get("fines") == "unpaid":
+            qs = qs.with_unpaid_fines()
         return qs
 
     @staticmethod
     def _error(exc):
         return Response({"detail": exc.detail, "code": exc.code}, status=exc.status_code)
+
+    @action(detail=True, methods=["post"], url_path="pay-fine")
+    def pay_fine(self, request, pk=None):
+        """Librarians only: record that the late fee of a returned loan was paid."""
+        loan = self.get_object()
+        try:
+            loan = services.pay_fine(loan.pk, request.user)
+        except services.LoanError as exc:
+            return self._error(exc)
+        return Response(self.get_serializer(loan).data)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -211,6 +224,56 @@ class ReservationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         except services.LoanError as exc:
             return self._error(exc)
         return Response(self.get_serializer(reservation).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def staff_overview(request):
+    """What a librarian needs on one screen: late books, unpaid fees, lines for books and the most borrowed books.
+    Readers' names are shown here, so it is for staff only."""
+    now = timezone.now()
+    loan_rows = LoanSerializer
+
+    late = Loan.objects.filter(returned_at__isnull=True, due_at__lt=now).select_related("book__author", "user").order_by("due_at")
+    unpaid = Loan.objects.with_unpaid_fines().select_related("book__author", "user").order_by("returned_at")
+
+    lines = {}
+    waiting = (
+        Reservation.objects.filter(status__in=Reservation.ACTIVE)
+        .select_related("book__author", "user")
+        .order_by("book_id", "id")
+    )
+    for r in waiting:
+        entry = lines.setdefault(r.book_id, {
+            "book": r.book_id, "book_title": r.book.title, "author_name": r.book.author.name, "readers": [],
+        })
+        entry["readers"].append({
+            "reservation": r.id, "username": r.user.username, "status": r.status,
+            "position": len(entry["readers"]) + 1, "expires_at": r.expires_at,
+        })
+
+    top = (
+        Book.objects.select_related("author")
+        .annotate(loan_count=Count("loans"))
+        .filter(loan_count__gt=0)
+        .order_by("-loan_count", "title")[:5]
+    )
+    active_count = Loan.objects.filter(returned_at__isnull=True).count()
+    unpaid_loans = list(unpaid)
+    return Response({
+        "totals": {
+            "active_loans": active_count,
+            "late_loans": late.count(),
+            "unpaid_fines": sum(loan.fine for loan in unpaid_loans),
+            "people_in_lines": sum(len(e["readers"]) for e in lines.values()),
+        },
+        "late": loan_rows(late, many=True).data,
+        "unpaid": loan_rows(unpaid_loans, many=True).data,
+        "lines": list(lines.values()),
+        "top_borrowed": [
+            {"id": b.id, "title": b.title, "author_name": b.author.name, "loan_count": b.loan_count} for b in top
+        ],
+    })
 
 
 @api_view(["GET"])

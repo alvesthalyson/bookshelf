@@ -113,15 +113,20 @@ class ReviewSerializer(serializers.ModelSerializer):
 class LoanSerializer(serializers.ModelSerializer):
     book_title = serializers.CharField(source="book.title", read_only=True)
     author_name = serializers.CharField(source="book.author.name", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
+    days_late = serializers.IntegerField(read_only=True)
+    fine = serializers.IntegerField(read_only=True)
+    fine_is_unpaid = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Loan
         fields = [
-            "id", "book", "book_title", "author_name", "borrowed_at",
+            "id", "book", "book_title", "author_name", "username", "borrowed_at",
             "due_at", "returned_at", "renewals", "is_overdue",
+            "days_late", "fine", "fine_is_unpaid", "fine_paid_at",
         ]
-        read_only_fields = ["id", "borrowed_at", "due_at", "returned_at", "renewals"]
+        read_only_fields = ["id", "borrowed_at", "due_at", "returned_at", "renewals", "fine_paid_at"]
         # The one-active-loan-per-book rule is checked in services.create_loan (and by the database),
         # so DRF does not need to build its own unique validator from the constraint.
         validators = []

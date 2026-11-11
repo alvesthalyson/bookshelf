@@ -77,6 +77,11 @@ LOAN_DAYS = 14
 MAX_ACTIVE_LOANS = 3
 MAX_RENEWALS = 2
 
+# Late fees: per full day late, with a cap for each loan. Money is in the smallest unit of FINE_CURRENCY (yen has none).
+FINE_PER_DAY = 50
+FINE_MAX_PER_LOAN = 1000
+FINE_CURRENCY = "JPY"
+
 # Reservation rules
 HOLD_DAYS = 3  # days a returned book is held for the first reader in line
 MAX_ACTIVE_RESERVATIONS = 3

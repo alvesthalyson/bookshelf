@@ -22,7 +22,7 @@ class ReviewAdmin(admin.ModelAdmin):
 
 @admin.register(Loan)
 class LoanAdmin(admin.ModelAdmin):
-    list_display = ["book", "user", "borrowed_at", "due_at", "returned_at", "renewals"]
+    list_display = ["book", "user", "borrowed_at", "due_at", "returned_at", "renewals", "fine_paid_at"]
     list_filter = ["returned_at"]
     search_fields = ["book__title", "user__username"]
 
