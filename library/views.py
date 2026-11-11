@@ -1,5 +1,6 @@
 from django.shortcuts import render  # <-- IMPORT MOVIDO PARA O TOPO
-from django.db.models import Avg, Count, F, OuterRef, Subquery
+from django.db.models import Avg, Count, F, IntegerField, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
@@ -10,9 +11,11 @@ from rest_framework.response import Response
 
 from .filters import NullsLastOrderingFilter
 from . import services
-from .models import Author, Book, Loan, Review
+from .models import Author, Book, Loan, Reservation, Review
 from .permissions import IsStaffOrReadOnly, ReadOrCreateForAnyone
-from .serializers import AuthorSerializer, BookSerializer, LoanSerializer, ReviewSerializer
+from .serializers import (
+    AuthorSerializer, BookSerializer, LoanSerializer, ReservationSerializer, ReviewSerializer,
+)
 
 
 class AuthorViewSet(viewsets.ModelViewSet):
@@ -33,6 +36,18 @@ class BookViewSet(viewsets.ModelViewSet):
             active_due=Subquery(
                 Loan.objects.filter(book=OuterRef("pk"), returned_at__isnull=True).values("due_at")[:1]
             ),
+            # readers in line for the book, and when the hold on it ends if it is being held
+            queue=Coalesce(
+                Subquery(
+                    Reservation.objects.filter(book=OuterRef("pk"), status__in=Reservation.ACTIVE)
+                    .order_by().values("book").annotate(n=Count("pk")).values("n")[:1]
+                ),
+                0,
+                output_field=IntegerField(),
+            ),
+            held=Subquery(
+                Reservation.objects.filter(book=OuterRef("pk"), status=Reservation.READY).values("expires_at")[:1]
+            ),
         )
         .order_by("-published_year", "title")
     )
@@ -48,6 +63,15 @@ class BookViewSet(viewsets.ModelViewSet):
     }
     search_fields = ["title", "author__name", "genre"]
     ordering_fields = ["published_year", "title", "created_at", "avg_rating"]
+
+    # Holds that ran out are released when someone looks at the books (there is no background job).
+    def list(self, request, *args, **kwargs):
+        services.expire_due_holds()
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        services.expire_due_holds()
+        return super().retrieve(request, *args, **kwargs)
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
@@ -110,6 +134,53 @@ class LoanViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Retriev
         except services.LoanError as exc:
             return self._error(exc)
         return Response(self.get_serializer(loan).data)
+
+
+class ReservationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Join a line, list your places in line and leave a line. Regular users only see their own."""
+
+    serializer_class = ReservationSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["book"]
+
+    def get_queryset(self):
+        qs = Reservation.objects.select_related("book__author", "user")
+        user = self.request.user
+        params = self.request.query_params
+        if not user.is_staff or params.get("mine") == "true":
+            qs = qs.filter(user=user)
+        active = params.get("active")
+        if active == "true":
+            qs = qs.filter(status__in=Reservation.ACTIVE)
+        elif active == "false":
+            qs = qs.exclude(status__in=Reservation.ACTIVE)
+        return qs
+
+    @staticmethod
+    def _error(exc):
+        return Response({"detail": exc.detail, "code": exc.code}, status=exc.status_code)
+
+    def list(self, request, *args, **kwargs):
+        services.expire_due_holds()
+        return super().list(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            reservation = services.reserve(request.user, serializer.validated_data["book"])
+        except services.LoanError as exc:
+            return self._error(exc)
+        return Response(self.get_serializer(reservation).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        reservation = self.get_object()  # 404 for reservations that are not yours
+        try:
+            reservation = services.cancel_reservation(reservation.pk, request.user)
+        except services.LoanError as exc:
+            return self._error(exc)
+        return Response(self.get_serializer(reservation).data)
 
 
 @api_view(["GET"])

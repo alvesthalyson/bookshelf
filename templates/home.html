@@ -490,6 +490,30 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
         }
+        /* Language, shortcuts */
+        .lang-select {
+            width: auto; flex: none;
+            background: transparent;
+            color: inherit;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .lang-select:hover { border-color: var(--accent); }
+        .lang-select option { background: var(--bg); color: var(--ink); }
+        .hero-actions { position: relative; margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
+        kbd {
+            font: inherit; font-size: 0.8em; line-height: 1;
+            padding: 2px 7px; margin: 0 2px;
+            border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px;
+        }
+        .btn kbd { margin-left: 10px; border-color: currentColor; opacity: 0.7; }
+        .keys { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 28px 0 0; padding: 0; color: var(--muted); font-size: 0.85rem; }
+        @media (hover: none) { .keys, .btn kbd { display: none; } }
+        .panel-head .nav { display: flex; align-items: center; gap: 8px; flex: none; }
     </style>
 </head>
 <body>
@@ -498,58 +522,66 @@
             <a class="brand" href="/">Bookshelf</a>
             <div class="account">
                 <span class="who" id="whoName" hidden></span>
-                <button class="btn ghost small" id="loansBtn" type="button" hidden>My loans</button>
+                <button class="btn ghost small" id="loansBtn" type="button" hidden data-i18n="my_loans">My loans</button>
                 <button class="btn ghost small" id="authBtn" type="button">Log in</button>
+                <select class="lang-select" id="langSel" data-i18n-aria-label="lang_label" aria-label="Language">
+                    <option value="ja" lang="ja">日本語</option>
+                    <option value="en" lang="en">English</option>
+                    <option value="pt" lang="pt">Português</option>
+                </select>
                 <button class="theme-toggle" id="themeToggle" type="button">Dark theme</button>
             </div>
         </header>
 
         <section class="hero">
             <h1>Bookshelf</h1>
-            <p>Search the collection, see what is in stock, and leave a review for the books you have read.</p>
+            <p data-i18n="hero_p">Search the collection, see what is in stock, and leave a review for the books you have read.</p>
+            <div class="hero-actions">
+                <button class="btn" id="surpriseBtn" type="button" aria-keyshortcuts="R"><span data-i18n="surprise">Surprise me</span><kbd aria-hidden="true">R</kbd></button>
+            </div>
         </section>
 
-        <section class="stats" id="stats" aria-label="Collection overview" hidden>
+        <section class="stats" id="stats" aria-label="Collection overview" data-i18n-aria-label="stats_aria" hidden>
             <dl class="figures">
-                <div><dt>Books</dt><dd id="sBooks"></dd></div>
-                <div><dt>In stock</dt><dd id="sStock"></dd></div>
-                <div><dt>Reviews</dt><dd id="sReviews"></dd></div>
-                <div><dt>Average rating</dt><dd id="sAvg"></dd></div>
+                <div><dt data-i18n="s_books">Books</dt><dd id="sBooks"></dd></div>
+                <div><dt data-i18n="s_stock">In stock</dt><dd id="sStock"></dd></div>
+                <div><dt data-i18n="s_reviews">Reviews</dt><dd id="sReviews"></dd></div>
+                <div><dt data-i18n="s_avg">Average rating</dt><dd id="sAvg"></dd></div>
             </dl>
             <div>
-                <h2>Most loved</h2>
+                <h2 data-i18n="most_loved">Most loved</h2>
                 <div id="sTop"></div>
             </div>
             <div>
-                <h2>Books by country</h2>
+                <h2 data-i18n="by_country">Books by country</h2>
                 <ul class="bars" id="sCountries"></ul>
-                <p class="hint" id="sHint">Select a country to filter the shelf.</p>
+                <p class="hint" id="sHint" data-i18n="hint_country">Select a country to filter the shelf.</p>
             </div>
         </section>
 
         <form class="tools" id="tools" role="search" autocomplete="off">
             <label class="field grow">
-                <span>Search by title or author</span>
-                <input type="search" id="search" placeholder="Try Murakami or Kokoro">
+                <span data-i18n="search_label">Search by title or author</span>
+                <input type="search" id="search" placeholder="Try Murakami or Kokoro" data-i18n-placeholder="search_ph" aria-keyshortcuts="/">
             </label>
             <label class="field">
-                <span>Author</span>
-                <select id="author"><option value="">All authors</option></select>
+                <span data-i18n="author">Author</span>
+                <select id="author"><option value="" data-i18n="all_authors">All authors</option></select>
             </label>
             <label class="field" id="genreField" hidden>
-                <span>Genre</span>
-                <select id="genre"><option value="">All genres</option></select>
+                <span data-i18n="genre">Genre</span>
+                <select id="genre"><option value="" data-i18n="all_genres">All genres</option></select>
             </label>
             <label class="field">
-                <span>Sort by</span>
+                <span data-i18n="sort">Sort by</span>
                 <select id="ordering">
-                    <option value="-published_year">Newest first</option>
-                    <option value="published_year">Oldest first</option>
-                    <option value="title">Title A to Z</option>
-                    <option value="-avg_rating">Best rated</option>
+                    <option value="-published_year" data-i18n="sort_new">Newest first</option>
+                    <option value="published_year" data-i18n="sort_old">Oldest first</option>
+                    <option value="title" data-i18n="sort_title">Title A to Z</option>
+                    <option value="-avg_rating" data-i18n="sort_best">Best rated</option>
                 </select>
             </label>
-            <label class="check"><input type="checkbox" id="inStock"> In stock only</label>
+            <label class="check"><input type="checkbox" id="inStock"> <span data-i18n="in_stock_only">In stock only</span></label>
         </form>
 
         <div class="status" aria-live="polite">
@@ -559,16 +591,22 @@
 
         <main class="shelf" id="shelf" aria-busy="true"></main>
 
-        <nav class="pager" id="pager" aria-label="Pages" hidden>
-            <button class="btn ghost" id="prev" type="button">Previous</button>
+        <nav class="pager" id="pager" aria-label="Pages" data-i18n-aria-label="pages_nav" hidden>
+            <button class="btn ghost" id="prev" type="button" data-i18n="prev">Previous</button>
             <span id="pageLabel"></span>
-            <button class="btn ghost" id="next" type="button">Next</button>
+            <button class="btn ghost" id="next" type="button" data-i18n="next">Next</button>
         </nav>
 
+        <ul class="keys" id="keys">
+            <li><kbd>/</kbd> <span data-i18n="key_search">Search</span></li>
+            <li><kbd>R</kbd> <span data-i18n="key_random">Surprise me</span></li>
+            <li><kbd>←</kbd><kbd>→</kbd> <span data-i18n="key_browse">Previous / next book</span></li>
+        </ul>
+
         <footer>
-            <a href="/api/">Browse the API</a>
-            <a href="/admin/">Admin</a>
-            <a href="https://openlibrary.org" target="_blank" rel="noopener">Covers from Open Library</a>
+            <a href="/api/" data-i18n="footer_api">Browse the API</a>
+            <a href="/admin/" data-i18n="footer_admin">Admin</a>
+            <a href="https://openlibrary.org" target="_blank" rel="noopener" data-i18n="footer_covers">Covers from Open Library</a>
         </footer>
     </div>
 
@@ -579,39 +617,43 @@
                     <h2 id="dTitle"></h2>
                     <p class="by" id="dAuthor"></p>
                 </div>
-                <button class="btn ghost" id="dClose" type="button">Close</button>
+                <div class="nav">
+                    <button class="btn ghost small" id="dPrev" type="button" aria-label="Previous book" title="Previous book" data-i18n-aria-label="prev_book" data-i18n-title="prev_book" disabled>‹</button>
+                    <button class="btn ghost small" id="dNext" type="button" aria-label="Next book" title="Next book" data-i18n-aria-label="next_book" data-i18n-title="next_book" disabled>›</button>
+                    <button class="btn ghost" id="dClose" type="button" data-i18n="close">Close</button>
+                </div>
             </div>
             <ul class="facts" id="dFacts"></ul>
             <p class="desc" id="dDesc" hidden></p>
             <div class="summary" id="dSummary"></div>
             <div class="loan" id="dLoan"></div>
 
-            <h3>Reviews</h3>
+            <h3 data-i18n="reviews">Reviews</h3>
             <ul class="reviews" id="dReviews"></ul>
             <p class="muted" id="dMore" hidden></p>
 
-            <h3>Write a review</h3>
+            <h3 data-i18n="write_review">Write a review</h3>
             <form class="review" id="reviewForm" novalidate>
                 <label class="field">
-                    <span>Your name</span>
+                    <span data-i18n="your_name">Your name</span>
                     <input type="text" id="rName" name="reviewer_name" maxlength="80" required>
                 </label>
                 <fieldset>
-                    <legend>Your rating</legend>
+                    <legend data-i18n="your_rating">Your rating</legend>
                     <div class="rate" id="rRate">
-                        <input type="radio" name="rating" id="r5" value="5"><label for="r5" title="5 stars">★</label>
-                        <input type="radio" name="rating" id="r4" value="4"><label for="r4" title="4 stars">★</label>
-                        <input type="radio" name="rating" id="r3" value="3"><label for="r3" title="3 stars">★</label>
-                        <input type="radio" name="rating" id="r2" value="2"><label for="r2" title="2 stars">★</label>
-                        <input type="radio" name="rating" id="r1" value="1"><label for="r1" title="1 star">★</label>
+                        <input type="radio" name="rating" id="r5" value="5"><label for="r5">★</label>
+                        <input type="radio" name="rating" id="r4" value="4"><label for="r4">★</label>
+                        <input type="radio" name="rating" id="r3" value="3"><label for="r3">★</label>
+                        <input type="radio" name="rating" id="r2" value="2"><label for="r2">★</label>
+                        <input type="radio" name="rating" id="r1" value="1"><label for="r1">★</label>
                     </div>
                 </fieldset>
                 <label class="field">
-                    <span>Comment (optional)</span>
+                    <span data-i18n="comment_opt">Comment (optional)</span>
                     <textarea id="rComment" name="comment"></textarea>
                 </label>
                 <div class="msg" id="rMsg" role="status"></div>
-                <div><button class="btn" id="rSubmit" type="submit">Post review</button></div>
+                <div><button class="btn" id="rSubmit" type="submit" data-i18n="post_review">Post review</button></div>
             </form>
         </div>
     </dialog>
@@ -620,15 +662,15 @@
         <form class="panel stack" id="authForm" novalidate>
             <div class="panel-head">
                 <h2 id="aTitle">Log in</h2>
-                <button class="btn ghost" id="aClose" type="button">Close</button>
+                <button class="btn ghost" id="aClose" type="button" data-i18n="close">Close</button>
             </div>
             <p class="muted" id="aIntro"></p>
             <label class="field">
-                <span>Username</span>
+                <span data-i18n="username">Username</span>
                 <input type="text" id="aUser" autocomplete="username" autocapitalize="none" spellcheck="false" required>
             </label>
             <label class="field">
-                <span>Password</span>
+                <span data-i18n="password">Password</span>
                 <input type="password" id="aPass" autocomplete="current-password" required>
             </label>
             <div class="msg" id="aMsg" role="alert"></div>
@@ -642,14 +684,16 @@
     <dialog id="loansDlg" class="side" aria-labelledby="lTitle">
         <div class="panel">
             <div class="panel-head">
-                <h2 id="lTitle">My loans</h2>
-                <button class="btn ghost" id="lClose" type="button">Close</button>
+                <h2 id="lTitle" data-i18n="my_loans">My loans</h2>
+                <button class="btn ghost" id="lClose" type="button" data-i18n="close">Close</button>
             </div>
             <p class="by" id="lRules"></p>
             <div class="msg" id="lMsg" role="status"></div>
-            <h3>On loan</h3>
+            <h3 data-i18n="on_loan">On loan</h3>
             <ul class="loan-list" id="lActive"></ul>
-            <h3>Returned</h3>
+            <h3 data-i18n="reservations">Reservations</h3>
+            <ul class="loan-list" id="lReserved"></ul>
+            <h3 data-i18n="returned">Returned</h3>
             <ul class="loan-list" id="lHistory"></ul>
             <p class="muted" id="lMore" hidden></p>
         </div>
@@ -665,7 +709,7 @@
         var books = [];      // books on the current page
         var current = null;  // book open in the detail panel
         var user = null;     // { username, is_staff } when logged in
-        var rules = { loan_days: 14, max_active_loans: 3, max_renewals: 2 }; // replaced by /api/auth/me/
+        var rules = { loan_days: 14, max_active_loans: 3, max_renewals: 2, hold_days: 3, max_active_reservations: 3 }; // replaced by /api/auth/me/
         var myLoans = [];    // my active loans
         var loanNote = null; // { text, kind } shown under the loan buttons
         var flash = null;    // { id, kind } book to animate on the shelf: 'pulled' (borrowed) or 'pushed' (returned)
@@ -673,6 +717,9 @@
         var enterTimer;
         var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
         var controller = null;
+        var myRes = [];       // my active reservations (places in line)
+        var listState = null; // what the last book request gave: { kind, count, pages, hasPrev, hasNext }
+        var lastStats = null; // last answer of /api/stats/, drawn again when the language changes
 
         var $ = function (id) { return document.getElementById(id); };
         var shelf = $('shelf'), detail = $('detail'), authDlg = $('authDlg'), loansDlg = $('loansDlg');
@@ -737,7 +784,7 @@
         }
 
         function ratingText(book) {
-            return book.average_rating == null ? 'No reviews yet' : book.average_rating.toFixed(1) + ' out of 5';
+            return book.average_rating == null ? t('no_reviews') : t('rating_text', { n: book.average_rating.toFixed(1) });
         }
 
         function debounce(fn, ms) {
@@ -745,12 +792,323 @@
             return function () { clearTimeout(t); t = setTimeout(fn, ms); };
         }
 
+        /* ---------- language ---------- */
+
+        var LOCALES = { en: 'en-US', ja: 'ja-JP', pt: 'pt-BR' };
+        var I18N = {
+            en: {
+                hero_p: 'Search the collection, see what is in stock, and leave a review for the books you have read.',
+                surprise: 'Surprise me', surprise_none: 'No books are in stock right now.', surprise_fail: 'Could not pick a book. Try again.',
+                stats_aria: 'Collection overview', s_books: 'Books', s_stock: 'In stock', s_reviews: 'Reviews', s_avg: 'Average rating',
+                none_yet: 'None yet', most_loved: 'Most loved', top_empty: 'No reviews yet. The best rated book will appear here.',
+                by_country: 'Books by country', hint_country: 'Select a country to filter the shelf.',
+                search_label: 'Search by title or author', search_ph: 'Try Murakami or Kokoro',
+                author: 'Author', all_authors: 'All authors', genre: 'Genre', all_genres: 'All genres',
+                sort: 'Sort by', sort_new: 'Newest first', sort_old: 'Oldest first', sort_title: 'Title A to Z', sort_best: 'Best rated',
+                in_stock_only: 'In stock only', loading_books: 'Loading books',
+                pages_nav: 'Pages', prev: 'Previous', next: 'Next', page_of: 'Page {page} of {pages}',
+                shelf_one: '{n} book on the shelf', shelf_many: '{n} books on the shelf',
+                match_one: '{n} book matches', match_many: '{n} books match', load_fail: 'Could not load books',
+                nf_title: 'No books found', nf_text: 'Nothing matches your search and filters. Clear them to see the whole shelf.', clear_filters: 'Clear filters',
+                shelf_err_title: 'The shelf did not load', shelf_err_text: 'Check that the server is running, then try again.', try_again: 'Try again',
+                footer_api: 'Browse the API', footer_admin: 'Admin', footer_covers: 'Covers from Open Library',
+                key_search: 'Search', key_random: 'Surprise me', key_browse: 'Previous / next book',
+                prev_book: 'Previous book', next_book: 'Next book', close: 'Close', lang_label: 'Language',
+                reviews: 'Reviews', write_review: 'Write a review', your_name: 'Your name', your_rating: 'Your rating',
+                comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
+                username: 'Username', password: 'Password',
+                theme_dark: 'Dark theme', theme_light: 'Light theme',
+                login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
+                no_reviews: 'No reviews yet', rating_text: '{n} out of 5',
+                top_by: 'by {name}', top_open: 'Open {title}', top_reviews_one: '{n} from {count} review', top_reviews_many: '{n} from {count} reviews',
+                card_label: '{title} by {author}', card_with_status: '{base}, {status}',
+                badge_overdue: 'Overdue', speak_overdue: 'overdue', speak_overdue_mine: 'you have it and it is overdue',
+                badge_yours: 'Yours, due {date}', speak_yours: 'you have it, due {date}',
+                badge_out: 'Checked out', speak_out: 'checked out', badge_back: 'Back {date}', speak_back: 'checked out, back {date}',
+                badge_inline: 'In line: #{n}', speak_inline: 'you are number {n} in line',
+                badge_ready: 'Ready for you', speak_ready: 'held for you, ready to borrow',
+                badge_held: 'On hold', speak_held: 'on hold for another reader',
+                by_author: 'by {name}', fact_published: 'Published {year}', fact_pages: '{n} pages', fact_in: 'In stock', fact_out: 'Checked out', fact_isbn: 'ISBN {isbn}',
+                no_reviews_first: 'No reviews yet. Be the first to write one.', loading_reviews: 'Loading reviews', no_reviews_dot: 'No reviews yet.',
+                reviews_latest: 'Showing the latest {shown} of {count} reviews.', reviews_fail: 'Could not load the reviews. Close this panel and open it again.',
+                f_name: 'Name', f_rating: 'Rating', f_comment: 'Comment', f_book: 'Book',
+                need_name: 'Enter your name.', need_rating: 'Choose a rating from 1 to 5 stars.', posting: 'Posting your review', posted: 'Review posted.',
+                session_reload: 'Your session expired. Reload the page and try again.', review_check: 'Check the form and try again.',
+                review_fail: 'The review was not saved. Check that the server is running and try again.',
+                auth_login: 'Log in', auth_register: 'Create an account',
+                intro_login: 'Log in to borrow books and keep track of your loans.',
+                intro_register: 'Pick a username and a password of at least 8 characters. Avoid common passwords.',
+                submit_register: 'Create account', switch_login: 'I already have an account',
+                need_credentials: 'Enter your username and password.', page_old: 'Your page is out of date. Reload it and try again.',
+                no_server: 'Could not reach the server. Check that it is running and try again.',
+                loan_have: 'You have this book', due: 'Due', overdue: 'Overdue', renew: 'Renew', return: 'Return',
+                login_borrow: 'Log in to borrow this book for {days} days.', login_borrow_btn: 'Log in to borrow',
+                borrow_btn: 'Borrow for {days} days', loan_full: 'You already have {n} books on loan. Return one to borrow another.',
+                out_title: 'Checked out', back_expected: 'Expected back {date}.', not_available: 'Not available right now.',
+                held_title: 'On hold', held_text: 'Held for another reader until {date}.',
+                queue_one: '{n} reader in line.', queue_many: '{n} readers in line.',
+                reserve_btn: 'Reserve this book', login_reserve: 'Log in to reserve this book.', login_reserve_btn: 'Log in to reserve',
+                res_full: 'You are already in line for {n} books. Leave one line to join another.',
+                res_ready_title: 'Ready for you', res_ready_text: 'Held for you until {date}. Borrow it before then.', res_cancel: 'Release the hold',
+                res_wait_title: 'You are in line', res_position: 'You are number {n} in line.', res_leave: 'Leave the line',
+                reservations: 'Reservations', res_empty: 'No reservations. When a book is checked out, you can join its line.',
+                res_until: 'Ready. Held until {date}', borrow_short: 'Borrow', cancel: 'Cancel',
+                on_loan: 'On loan', returned: 'Returned',
+                loans_rules: 'Loans last {days} days. You can borrow up to {max} books and renew each loan up to {renew} times.',
+                no_loans: 'No books on loan. Open a book and select Borrow.', renewed_one: ' (renewed 1 time)', renewed_many: ' (renewed {n} times)',
+                hist_empty: 'Nothing returned yet.', hist_line: 'Borrowed {a}, returned {b}',
+                hist_more: 'Showing the latest {shown} of {count} returned loans.', hist_fail: 'Could not load your history. Close this panel and open it again.',
+                loading: 'Loading', borrowing: 'Borrowing', borrowed_ok: 'Borrowed. Due {date}.', returned_ok: 'Returned "{title}". Thank you.',
+                renewed_ok: 'Renewed. New due date: {date}.', reserving: 'Joining the line', reserved_ok: 'You joined the line.', cancelled_ok: 'Reservation cancelled.',
+                session_login: 'Your session expired. Log in again.', generic_fail: 'That did not work. Check that the server is running and try again.',
+                err_invalid_credentials: 'Wrong username or password.',
+                err_book_unavailable: 'This book is not available right now.',
+                err_loan_limit: 'You already have {max} books on loan. Return one to borrow another.',
+                err_overdue_loans: 'You have an overdue book. Return it before borrowing another.',
+                err_loan_not_active: 'This loan has already ended.',
+                err_renewal_limit: 'You have used all {max} renewals for this loan.',
+                err_loan_overdue: 'Overdue loans cannot be renewed. Return the book.',
+                err_not_your_loan: 'This loan belongs to another user.',
+                err_book_reserved: 'This book is being held for another reader.',
+                err_book_available: 'This book is on the shelf. Borrow it instead.',
+                err_already_have_book: 'You already have this book.',
+                err_already_reserved: 'You are already in line for this book.',
+                err_reservation_limit: 'You can be in line for {max} books at a time. Leave one line to join another.',
+                err_reservation_not_active: 'This reservation is no longer active.',
+                err_not_your_reservation: 'This reservation belongs to another user.',
+                err_username_invalid: 'Use 3 to 30 letters, numbers or . @ + - _ characters.',
+                err_username_taken: 'This username is taken.',
+                err_password_too_short: 'This password is too short. It must contain at least {min_length} characters.',
+                err_password_too_common: 'This password is too common.',
+                err_password_entirely_numeric: 'This password is entirely numeric.',
+                err_password_too_similar: 'This password is too similar to your username.'
+            },
+            ja: {
+                hero_p: 'コレクションを検索して、在庫を確認し、読んだ本のレビューを書きましょう。',
+                surprise: 'おまかせの一冊', surprise_none: '現在、在庫のある本がありません。', surprise_fail: '本を選べませんでした。もう一度お試しください。',
+                stats_aria: 'コレクションの概要', s_books: '蔵書', s_stock: '在庫あり', s_reviews: 'レビュー', s_avg: '平均評価',
+                none_yet: 'まだありません', most_loved: '一番人気', top_empty: 'まだレビューがありません。最高評価の本がここに表示されます。',
+                by_country: '国別の本', hint_country: '国を選ぶと棚を絞り込めます。',
+                search_label: 'タイトルまたは著者で検索', search_ph: '例：Murakami、Kokoro',
+                author: '著者', all_authors: 'すべての著者', genre: 'ジャンル', all_genres: 'すべてのジャンル',
+                sort: '並べ替え', sort_new: '新しい順', sort_old: '古い順', sort_title: 'タイトル順（A→Z）', sort_best: '評価の高い順',
+                in_stock_only: '在庫ありのみ', loading_books: '読み込み中',
+                pages_nav: 'ページ送り', prev: '前へ', next: '次へ', page_of: '{page} / {pages} ページ',
+                shelf_one: '{n}冊が棚にあります', shelf_many: '{n}冊が棚にあります',
+                match_one: '{n}冊が見つかりました', match_many: '{n}冊が見つかりました', load_fail: '本を読み込めませんでした',
+                nf_title: '本が見つかりません', nf_text: '検索や絞り込みに一致する本がありません。条件を解除すると棚全体が表示されます。', clear_filters: '条件を解除',
+                shelf_err_title: '棚を読み込めませんでした', shelf_err_text: 'サーバーが動いているか確認して、もう一度お試しください。', try_again: '再試行',
+                footer_api: 'APIを見る', footer_admin: '管理画面', footer_covers: '表紙：Open Library',
+                key_search: '検索', key_random: 'おまかせの一冊', key_browse: '前の本 / 次の本',
+                prev_book: '前の本', next_book: '次の本', close: '閉じる', lang_label: '言語',
+                reviews: 'レビュー', write_review: 'レビューを書く', your_name: 'お名前', your_rating: '評価',
+                comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
+                username: 'ユーザー名', password: 'パスワード',
+                theme_dark: 'ダークテーマ', theme_light: 'ライトテーマ',
+                login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
+                no_reviews: 'レビューなし', rating_text: '5点中{n}点',
+                top_by: '{name} 著', top_open: '{title}を開く', top_reviews_one: '{n}（レビュー{count}件）', top_reviews_many: '{n}（レビュー{count}件）',
+                card_label: '{title}（{author} 著）', card_with_status: '{base}、{status}',
+                badge_overdue: '期限切れ', speak_overdue: '期限切れ', speak_overdue_mine: 'あなたが借りていて、期限を過ぎています',
+                badge_yours: '貸出中・{date}まで', speak_yours: 'あなたが借りています、返却期限は{date}です',
+                badge_out: '貸出中', speak_out: '貸出中', badge_back: '{date}に返却', speak_back: '貸出中、{date}に返却予定',
+                badge_inline: '順番待ち {n}番', speak_inline: 'あなたは{n}番目に待っています',
+                badge_ready: 'ご用意できました', speak_ready: 'あなたのために取り置き中です。借りられます',
+                badge_held: '取り置き中', speak_held: '他の読者のために取り置き中',
+                by_author: '{name} 著', fact_published: '{year}年刊行', fact_pages: '{n}ページ', fact_in: '在庫あり', fact_out: '貸出中', fact_isbn: 'ISBN {isbn}',
+                no_reviews_first: 'まだレビューがありません。最初のレビューを書いてみませんか。', loading_reviews: 'レビューを読み込み中', no_reviews_dot: 'まだレビューがありません。',
+                reviews_latest: '{count}件中、最新の{shown}件を表示しています。', reviews_fail: 'レビューを読み込めませんでした。このパネルを閉じて、もう一度開いてください。',
+                f_name: 'お名前', f_rating: '評価', f_comment: 'コメント', f_book: '本',
+                need_name: 'お名前を入力してください。', need_rating: '星1〜5で評価を選んでください。', posting: 'レビューを投稿中', posted: 'レビューを投稿しました。',
+                session_reload: 'セッションの有効期限が切れました。ページを再読み込みして、もう一度お試しください。', review_check: '入力内容を確認して、もう一度お試しください。',
+                review_fail: 'レビューを保存できませんでした。サーバーが動いているか確認して、もう一度お試しください。',
+                auth_login: 'ログイン', auth_register: 'アカウントを作成',
+                intro_login: 'ログインすると、本を借りて貸出状況を確認できます。',
+                intro_register: 'ユーザー名と8文字以上のパスワードを決めてください。よくあるパスワードは避けてください。',
+                submit_register: 'アカウントを作成', switch_login: 'アカウントをお持ちの方',
+                need_credentials: 'ユーザー名とパスワードを入力してください。', page_old: 'ページが古くなっています。再読み込みして、もう一度お試しください。',
+                no_server: 'サーバーに接続できませんでした。サーバーが動いているか確認して、もう一度お試しください。',
+                loan_have: 'この本を借りています', due: '返却期限', overdue: '期限切れ', renew: '延長', return: '返却',
+                login_borrow: 'ログインすると、この本を{days}日間借りられます。', login_borrow_btn: 'ログインして借りる',
+                borrow_btn: '{days}日間借りる', loan_full: 'すでに{n}冊を借りています。別の本を借りるには、どれか1冊を返却してください。',
+                out_title: '貸出中', back_expected: '{date}に返却予定です。', not_available: '現在は借りられません。',
+                held_title: '取り置き中', held_text: '他の読者のために{date}まで取り置かれています。',
+                queue_one: '{n}人が順番待ちしています。', queue_many: '{n}人が順番待ちしています。',
+                reserve_btn: 'この本を予約する', login_reserve: 'ログインすると、この本を予約できます。', login_reserve_btn: 'ログインして予約する',
+                res_full: 'すでに{n}冊の順番待ちをしています。別の本を予約するには、どれか1冊の予約を取り消してください。',
+                res_ready_title: 'ご用意できました', res_ready_text: '{date}まで取り置いています。それまでに借りてください。', res_cancel: '取り置きを解除',
+                res_wait_title: '順番待ち中', res_position: '現在{n}番目です。', res_leave: '予約を取り消す',
+                reservations: '予約', res_empty: '予約はありません。貸出中の本は、順番待ちに並べます。',
+                res_until: '準備完了。{date}まで取り置き', borrow_short: '借りる', cancel: '取り消す',
+                on_loan: '貸出中', returned: '返却済み',
+                loans_rules: '貸出期間は{days}日間です。最大{max}冊まで借りられ、1回の貸出につき{renew}回まで延長できます。',
+                no_loans: '借りている本はありません。本を開いて「借りる」を選んでください。', renewed_one: '（延長1回）', renewed_many: '（延長{n}回）',
+                hist_empty: '返却済みの本はまだありません。', hist_line: '貸出 {a}、返却 {b}',
+                hist_more: '返却済み{count}件中、最新の{shown}件を表示しています。', hist_fail: '履歴を読み込めませんでした。このパネルを閉じて、もう一度開いてください。',
+                loading: '読み込み中', borrowing: '貸出処理中', borrowed_ok: '借りました。返却期限は{date}です。', returned_ok: '「{title}」を返却しました。ありがとうございます。',
+                renewed_ok: '延長しました。新しい返却期限は{date}です。', reserving: '予約中', reserved_ok: '順番待ちに並びました。', cancelled_ok: '予約を取り消しました。',
+                session_login: 'セッションの有効期限が切れました。もう一度ログインしてください。', generic_fail: '失敗しました。サーバーが動いているか確認して、もう一度お試しください。',
+                err_invalid_credentials: 'ユーザー名またはパスワードが違います。',
+                err_book_unavailable: 'この本は現在借りられません。',
+                err_loan_limit: 'すでに{max}冊を借りています。別の本を借りるには、どれか1冊を返却してください。',
+                err_overdue_loans: '期限切れの本があります。ほかの本を借りる前に返却してください。',
+                err_loan_not_active: 'この貸出はすでに終了しています。',
+                err_renewal_limit: 'この貸出の延長回数（{max}回）をすべて使いました。',
+                err_loan_overdue: '期限切れの本は延長できません。本を返却してください。',
+                err_not_your_loan: 'この貸出は別のユーザーのものです。',
+                err_book_reserved: 'この本は他の読者のために取り置かれています。',
+                err_book_available: 'この本は棚にあります。予約ではなく、そのまま借りてください。',
+                err_already_have_book: 'この本はすでに借りています。',
+                err_already_reserved: 'この本はすでに予約済みです。',
+                err_reservation_limit: '予約できるのは同時に{max}冊までです。別の本を予約するには、どれか1冊の予約を取り消してください。',
+                err_reservation_not_active: 'この予約はすでに無効です。',
+                err_not_your_reservation: 'この予約は別のユーザーのものです。',
+                err_username_invalid: 'ユーザー名は3〜30文字で、英数字と . @ + - _ が使えます。',
+                err_username_taken: 'このユーザー名はすでに使われています。',
+                err_password_too_short: 'パスワードが短すぎます。{min_length}文字以上にしてください。',
+                err_password_too_common: 'このパスワードはよく使われているため使えません。',
+                err_password_entirely_numeric: 'パスワードを数字だけにすることはできません。',
+                err_password_too_similar: 'パスワードがユーザー名に似すぎています。'
+            },
+            pt: {
+                hero_p: 'Pesquise no acervo, veja o que está disponível e deixe uma resenha dos livros que você leu.',
+                surprise: 'Surpreenda-me', surprise_none: 'Não há livros disponíveis agora.', surprise_fail: 'Não foi possível escolher um livro. Tente de novo.',
+                stats_aria: 'Visão geral do acervo', s_books: 'Livros', s_stock: 'Disponíveis', s_reviews: 'Resenhas', s_avg: 'Nota média',
+                none_yet: 'Ainda não há', most_loved: 'Mais amado', top_empty: 'Ainda não há resenhas. O livro mais bem avaliado aparecerá aqui.',
+                by_country: 'Livros por país', hint_country: 'Selecione um país para filtrar a estante.',
+                search_label: 'Buscar por título ou autor', search_ph: 'Tente Murakami ou Kokoro',
+                author: 'Autor', all_authors: 'Todos os autores', genre: 'Gênero', all_genres: 'Todos os gêneros',
+                sort: 'Ordenar por', sort_new: 'Mais recentes', sort_old: 'Mais antigos', sort_title: 'Título de A a Z', sort_best: 'Mais bem avaliados',
+                in_stock_only: 'Somente disponíveis', loading_books: 'Carregando livros',
+                pages_nav: 'Páginas', prev: 'Anterior', next: 'Próxima', page_of: 'Página {page} de {pages}',
+                shelf_one: '{n} livro na estante', shelf_many: '{n} livros na estante',
+                match_one: '{n} livro encontrado', match_many: '{n} livros encontrados', load_fail: 'Não foi possível carregar os livros',
+                nf_title: 'Nenhum livro encontrado', nf_text: 'Nada corresponde à busca e aos filtros. Limpe-os para ver a estante inteira.', clear_filters: 'Limpar filtros',
+                shelf_err_title: 'A estante não carregou', shelf_err_text: 'Verifique se o servidor está em execução e tente de novo.', try_again: 'Tentar de novo',
+                footer_api: 'Ver a API', footer_admin: 'Administração', footer_covers: 'Capas da Open Library',
+                key_search: 'Buscar', key_random: 'Surpreenda-me', key_browse: 'Livro anterior / próximo',
+                prev_book: 'Livro anterior', next_book: 'Próximo livro', close: 'Fechar', lang_label: 'Idioma',
+                reviews: 'Resenhas', write_review: 'Escrever uma resenha', your_name: 'Seu nome', your_rating: 'Sua nota',
+                comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
+                username: 'Usuário', password: 'Senha',
+                theme_dark: 'Tema escuro', theme_light: 'Tema claro',
+                login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
+                no_reviews: 'Sem resenhas', rating_text: '{n} de 5',
+                top_by: 'de {name}', top_open: 'Abrir {title}', top_reviews_one: '{n} em {count} resenha', top_reviews_many: '{n} em {count} resenhas',
+                card_label: '{title}, de {author}', card_with_status: '{base}, {status}',
+                badge_overdue: 'Atrasado', speak_overdue: 'atrasado', speak_overdue_mine: 'você está com ele e está atrasado',
+                badge_yours: 'Seu, até {date}', speak_yours: 'você está com ele, devolver até {date}',
+                badge_out: 'Emprestado', speak_out: 'emprestado', badge_back: 'Volta {date}', speak_back: 'emprestado, volta em {date}',
+                badge_inline: 'Na fila: nº {n}', speak_inline: 'você é o número {n} da fila',
+                badge_ready: 'Pronto para você', speak_ready: 'reservado para você, pronto para retirar',
+                badge_held: 'Reservado', speak_held: 'reservado para outro leitor',
+                by_author: 'de {name}', fact_published: 'Publicado em {year}', fact_pages: '{n} páginas', fact_in: 'Disponível', fact_out: 'Emprestado', fact_isbn: 'ISBN {isbn}',
+                no_reviews_first: 'Ainda não há resenhas. Seja o primeiro a escrever uma.', loading_reviews: 'Carregando resenhas', no_reviews_dot: 'Ainda não há resenhas.',
+                reviews_latest: 'Mostrando as {shown} mais recentes de {count} resenhas.', reviews_fail: 'Não foi possível carregar as resenhas. Feche este painel e abra de novo.',
+                f_name: 'Nome', f_rating: 'Nota', f_comment: 'Comentário', f_book: 'Livro',
+                need_name: 'Digite seu nome.', need_rating: 'Escolha uma nota de 1 a 5 estrelas.', posting: 'Publicando sua resenha', posted: 'Resenha publicada.',
+                session_reload: 'Sua sessão expirou. Recarregue a página e tente de novo.', review_check: 'Confira o formulário e tente de novo.',
+                review_fail: 'A resenha não foi salva. Verifique se o servidor está em execução e tente de novo.',
+                auth_login: 'Entrar', auth_register: 'Criar uma conta',
+                intro_login: 'Entre para pegar livros emprestados e acompanhar seus empréstimos.',
+                intro_register: 'Escolha um nome de usuário e uma senha com pelo menos 8 caracteres. Evite senhas comuns.',
+                submit_register: 'Criar conta', switch_login: 'Já tenho uma conta',
+                need_credentials: 'Digite seu usuário e sua senha.', page_old: 'Sua página está desatualizada. Recarregue e tente de novo.',
+                no_server: 'Não foi possível acessar o servidor. Verifique se ele está em execução e tente de novo.',
+                loan_have: 'Você está com este livro', due: 'Devolver até', overdue: 'Atrasado', renew: 'Renovar', return: 'Devolver',
+                login_borrow: 'Entre para pegar este livro por {days} dias.', login_borrow_btn: 'Entrar para pegar emprestado',
+                borrow_btn: 'Pegar por {days} dias', loan_full: 'Você já está com {n} livros emprestados. Devolva um para pegar outro.',
+                out_title: 'Emprestado', back_expected: 'Devolução prevista para {date}.', not_available: 'Indisponível no momento.',
+                held_title: 'Reservado', held_text: 'Reservado para outro leitor até {date}.',
+                queue_one: '{n} leitor na fila.', queue_many: '{n} leitores na fila.',
+                reserve_btn: 'Reservar este livro', login_reserve: 'Entre para reservar este livro.', login_reserve_btn: 'Entrar para reservar',
+                res_full: 'Você já está na fila de {n} livros. Saia de uma fila para entrar em outra.',
+                res_ready_title: 'Pronto para você', res_ready_text: 'Reservado para você até {date}. Pegue-o antes disso.', res_cancel: 'Liberar a reserva',
+                res_wait_title: 'Você está na fila', res_position: 'Você é o número {n} da fila.', res_leave: 'Sair da fila',
+                reservations: 'Reservas', res_empty: 'Nenhuma reserva. Quando um livro estiver emprestado, você pode entrar na fila dele.',
+                res_until: 'Pronto. Reservado até {date}', borrow_short: 'Pegar', cancel: 'Cancelar',
+                on_loan: 'Emprestados', returned: 'Devolvidos',
+                loans_rules: 'Os empréstimos duram {days} dias. Você pode pegar até {max} livros e renovar cada empréstimo até {renew} vezes.',
+                no_loans: 'Nenhum livro emprestado. Abra um livro e escolha Pegar.', renewed_one: ' (renovado 1 vez)', renewed_many: ' (renovado {n} vezes)',
+                hist_empty: 'Nada devolvido ainda.', hist_line: 'Emprestado em {a}, devolvido em {b}',
+                hist_more: 'Mostrando os {shown} mais recentes de {count} empréstimos devolvidos.', hist_fail: 'Não foi possível carregar seu histórico. Feche este painel e abra de novo.',
+                loading: 'Carregando', borrowing: 'Emprestando', borrowed_ok: 'Emprestado. Devolver até {date}.', returned_ok: 'Você devolveu "{title}". Obrigado.',
+                renewed_ok: 'Renovado. Nova data de devolução: {date}.', reserving: 'Entrando na fila', reserved_ok: 'Você entrou na fila.', cancelled_ok: 'Reserva cancelada.',
+                session_login: 'Sua sessão expirou. Entre de novo.', generic_fail: 'Não deu certo. Verifique se o servidor está em execução e tente de novo.',
+                err_invalid_credentials: 'Usuário ou senha incorretos.',
+                err_book_unavailable: 'Este livro não está disponível agora.',
+                err_loan_limit: 'Você já está com {max} livros emprestados. Devolva um para pegar outro.',
+                err_overdue_loans: 'Você tem um livro atrasado. Devolva-o antes de pegar outro.',
+                err_loan_not_active: 'Este empréstimo já terminou.',
+                err_renewal_limit: 'Você usou todas as {max} renovações deste empréstimo.',
+                err_loan_overdue: 'Empréstimos atrasados não podem ser renovados. Devolva o livro.',
+                err_not_your_loan: 'Este empréstimo pertence a outro usuário.',
+                err_book_reserved: 'Este livro está reservado para outro leitor.',
+                err_book_available: 'Este livro está na estante. Pegue-o emprestado.',
+                err_already_have_book: 'Você já está com este livro.',
+                err_already_reserved: 'Você já está na fila deste livro.',
+                err_reservation_limit: 'Você só pode estar na fila de {max} livros ao mesmo tempo. Saia de uma fila para entrar em outra.',
+                err_reservation_not_active: 'Esta reserva não está mais ativa.',
+                err_not_your_reservation: 'Esta reserva pertence a outro usuário.',
+                err_username_invalid: 'Use de 3 a 30 letras, números ou os caracteres . @ + - _',
+                err_username_taken: 'Este nome de usuário já existe.',
+                err_password_too_short: 'Esta senha é curta demais. Use pelo menos {min_length} caracteres.',
+                err_password_too_common: 'Esta senha é comum demais.',
+                err_password_entirely_numeric: 'A senha não pode ter apenas números.',
+                err_password_too_similar: 'A senha é parecida demais com o nome de usuário.'
+            }
+        };
+        var lang = 'en';
+
+        function knownLang(code) { return Object.prototype.hasOwnProperty.call(LOCALES, code) ? code : ''; }
+
+        // ?lang=ja wins, then the saved choice, then the browser's language.
+        function pickLang() {
+            var asked = knownLang(new URLSearchParams(location.search).get('lang'));
+            if (asked) return asked;
+            try { var saved = knownLang(localStorage.getItem('bookshelf-lang')); if (saved) return saved; } catch (e) {}
+            return knownLang((navigator.language || 'en').slice(0, 2).toLowerCase()) || 'en';
+        }
+
+        function t(key, params) {
+            var text = I18N[lang][key];
+            if (text == null) text = I18N.en[key];
+            if (text == null) return key;
+            return text.replace(/\{(\w+)\}/g, function (m, name) { return params && params[name] != null ? params[name] : m; });
+        }
+
+        // Plural forms: key_one for 1, key_many for everything else. Japanese uses the same text for both.
+        function tn(base, n, params) { return t(base + (n === 1 ? '_one' : '_many'), Object.assign({ n: n }, params)); }
+
+        // The message for an error code from the API, or null when the page has no text for it.
+        function errorText(code, params) {
+            return I18N.en.hasOwnProperty('err_' + code) ? t('err_' + code, params) : null;
+        }
+
+        function applyStaticI18n() {
+            document.documentElement.lang = lang;
+            Array.prototype.forEach.call(document.querySelectorAll('[data-i18n]'), function (node) {
+                node.textContent = t(node.getAttribute('data-i18n'));
+            });
+            ['placeholder', 'aria-label', 'title'].forEach(function (attr) {
+                Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-' + attr + ']'), function (node) {
+                    node.setAttribute(attr, t(node.getAttribute('data-i18n-' + attr)));
+                });
+            });
+            Array.prototype.forEach.call(document.querySelectorAll('#rRate label'), function (label) {
+                label.title = tn('star', Number(label.getAttribute('for').slice(1)));
+            });
+            $('langSel').value = lang;
+        }
+
+        lang = pickLang();
+
         /* ---------- theme ---------- */
 
         var root = document.documentElement;
         var toggle = $('themeToggle');
         function syncToggle() {
-            toggle.textContent = root.getAttribute('data-theme') === 'dark' ? 'Light theme' : 'Dark theme';
+            toggle.textContent = root.getAttribute('data-theme') === 'dark' ? t('theme_light') : t('theme_dark');
         }
         toggle.addEventListener('click', function () {
             var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -787,24 +1145,26 @@
         }
 
         function shortDate(iso) {
-            return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            return new Date(iso).toLocaleDateString(LOCALES[lang], { month: 'short', day: 'numeric' });
         }
 
         // What the cover says about a checked-out book. Nothing when the book is on the shelf.
         function statusOf(book) {
-            if (book.in_stock) return null;
-            var mine = loanFor(book.id);
-            var due = mine ? mine.due_at : book.due_at;
-            var late = !!due && new Date(due) < new Date();
+            var mine = loanFor(book.id), res = resFor(book.id);
             if (mine) {
-                return late
-                    ? { text: 'Overdue', mine: true, speak: 'you have it and it is overdue' }
-                    : { text: 'Yours, due ' + shortDate(due), mine: true, speak: 'you have it, due ' + shortDate(due) };
+                var lateMine = new Date(mine.due_at) < new Date();
+                return lateMine
+                    ? { text: t('badge_overdue'), mine: true, speak: t('speak_overdue_mine') }
+                    : { text: t('badge_yours', { date: shortDate(mine.due_at) }), mine: true, speak: t('speak_yours', { date: shortDate(mine.due_at) }) };
             }
-            if (!due) return { text: 'Checked out', speak: 'checked out' };
-            return late
-                ? { text: 'Overdue', speak: 'overdue' }
-                : { text: 'Back ' + shortDate(due), speak: 'checked out, back ' + shortDate(due) };
+            if (res && res.status === 'ready') return { text: t('badge_ready'), mine: true, speak: t('speak_ready') };
+            if (res) return { text: t('badge_inline', { n: res.position }), mine: true, speak: t('speak_inline', { n: res.position }) };
+            if (book.in_stock) return book.held_until ? { text: t('badge_held'), speak: t('speak_held') } : null;
+            var due = book.due_at;
+            if (!due) return { text: t('badge_out'), speak: t('speak_out') };
+            return new Date(due) < new Date()
+                ? { text: t('badge_overdue'), speak: t('speak_overdue') }
+                : { text: t('badge_back', { date: shortDate(due) }), speak: t('speak_back', { date: shortDate(due) }) };
         }
 
         function applyStatus(card, book) {
@@ -814,7 +1174,8 @@
             var status = statusOf(book);
             cover.classList.toggle('has-badge', !!status);
             if (status) cover.append(el('span', { class: 'badge' + (status.mine ? ' mine' : ''), text: status.text }));
-            card.setAttribute('aria-label', book.title + ' by ' + book.author_name + (status ? ', ' + status.speak : ''));
+            var base = t('card_label', { title: book.title, author: book.author_name });
+            card.setAttribute('aria-label', status ? t('card_with_status', { base: base, status: status.speak }) : base);
         }
 
         // Refresh the strips on the cards that are already on screen. Re-drawing the shelf
@@ -832,7 +1193,7 @@
                 coverEl(book),
                 el('span', { class: 'book-meta', 'aria-hidden': 'true' },
                     book.average_rating == null
-                        ? el('span', { class: 'sub', text: 'No reviews yet' })
+                        ? el('span', { class: 'sub', text: t('no_reviews') })
                         : el('span', null, el('span', { class: 'stars', text: stars(book.average_rating) }), ' ' + book.average_rating.toFixed(1)),
                     el('span', { class: 'sub', text: String(book.published_year) })));
             applyStatus(card, book);
@@ -872,6 +1233,28 @@
                 el('button', { class: 'btn ghost', type: 'button', text: buttonLabel, onclick: handler })));
         }
 
+        function renderStatus() {
+            if (!listState) return;
+            if (listState.kind === 'error') {
+                $('count').textContent = t('load_fail');
+                $('pager').hidden = true;
+                return;
+            }
+            $('count').textContent = tn(filtered() ? 'match' : 'shelf', listState.count);
+            $('pager').hidden = listState.pages <= 1;
+            $('pageLabel').textContent = t('page_of', { page: state.page, pages: listState.pages });
+            $('prev').disabled = !listState.hasPrev;
+            $('next').disabled = !listState.hasNext;
+        }
+
+        // Draw the shelf, or the message that stands in for it. Used again when the language changes.
+        function paintShelf(entrance) {
+            if (!listState) return;
+            if (listState.kind === 'error') showNotice(t('shelf_err_title'), t('shelf_err_text'), t('try_again'), loadBooks);
+            else if (!books.length) showNotice(t('nf_title'), t('nf_text'), t('clear_filters'), clearFilters);
+            else renderShelf(entrance);
+        }
+
         function filtered() {
             return !!(state.search || state.author || state.genre || state.country || state.inStock);
         }
@@ -896,25 +1279,20 @@
 
             return api('/api/books/?' + params, { signal: controller.signal }).then(function (data) {
                 books = data.results;
-                var pages = Math.max(1, Math.ceil(data.count / PAGE_SIZE));
-                $('count').textContent = data.count + (data.count === 1 ? ' book' : ' books') + (filtered() ? ' match' : ' on the shelf');
+                listState = {
+                    kind: 'books', count: data.count, pages: Math.max(1, Math.ceil(data.count / PAGE_SIZE)),
+                    hasPrev: !!data.previous, hasNext: !!data.next
+                };
                 $('pageInfo').textContent = '';
-                $('pager').hidden = pages <= 1;
-                $('pageLabel').textContent = 'Page ' + state.page + ' of ' + pages;
-                $('prev').disabled = !data.previous;
-                $('next').disabled = !data.next;
-                if (!books.length) {
-                    showNotice('No books found', 'Nothing matches your search and filters. Clear them to see the whole shelf.', 'Clear filters', clearFilters);
-                } else {
-                    renderShelf(true);
-                }
+                renderStatus();
+                paintShelf(true);
                 shelf.setAttribute('aria-busy', 'false');
             }).catch(function (err) {
                 if (err.name === 'AbortError') return;
                 if (err.status === 404 && state.page > 1) { state.page = 1; writeUrl(true); return loadBooks(); }
-                $('count').textContent = 'Could not load books';
-                $('pager').hidden = true;
-                showNotice('The shelf did not load', 'Check that the server is running, then try again.', 'Try again', loadBooks);
+                listState = { kind: 'error' };
+                renderStatus();
+                paintShelf(false);
                 shelf.setAttribute('aria-busy', 'false');
             });
         }
@@ -966,6 +1344,7 @@
         }
 
         function renderStats(s) {
+            lastStats = s;
             countTo($('sBooks'), s.books, 0);
             countTo($('sStock'), s.in_stock, 0);
             countTo($('sReviews'), s.reviews, 0);
@@ -973,7 +1352,7 @@
             if (s.average_rating == null) {
                 cancelAnimationFrame(avg._raf);
                 avg._v = null;
-                avg.textContent = 'None yet';
+                avg.textContent = t('none_yet');
             } else {
                 countTo(avg, s.average_rating, 1);
             }
@@ -981,16 +1360,16 @@
 
             var top = $('sTop');
             if (!s.top_rated) {
-                top.replaceChildren(el('p', { class: 'muted', text: 'No reviews yet. The best rated book will appear here.' }));
+                top.replaceChildren(el('p', { class: 'muted', text: t('top_empty') }));
             } else {
-                var t = s.top_rated;
-                top.replaceChildren(el('button', { class: 'top-book', type: 'button', 'aria-label': 'Open ' + t.title, onclick: function () { openDetail(t.id); } },
-                    coverEl({ title: t.title, author_name: t.author_name, cover_url: '' }),
+                var best = s.top_rated;
+                top.replaceChildren(el('button', { class: 'top-book', type: 'button', 'aria-label': t('top_open', { title: best.title }), onclick: function () { openDetail(best.id); } },
+                    coverEl({ title: best.title, author_name: best.author_name, cover_url: '' }),
                     el('span', null,
-                        el('span', { class: 't-title', text: t.title }), el('br'),
-                        el('span', { class: 't-sub', text: 'by ' + t.author_name }), el('br'),
-                        el('span', { class: 'stars', text: stars(t.average_rating) }),
-                        el('span', { class: 't-sub', text: ' ' + t.average_rating.toFixed(1) + ' from ' + t.review_count + (t.review_count === 1 ? ' review' : ' reviews') }))));
+                        el('span', { class: 't-title', text: best.title }), el('br'),
+                        el('span', { class: 't-sub', text: t('top_by', { name: best.author_name }) }), el('br'),
+                        el('span', { class: 'stars', text: stars(best.average_rating) }),
+                        el('span', { class: 't-sub', text: ' ' + tn('top_reviews', best.review_count, { n: best.average_rating.toFixed(1), count: best.review_count }) }))));
             }
 
             var list = $('sCountries');
@@ -1106,54 +1485,55 @@
 
         function renderDetailHead(book) {
             $('dTitle').textContent = book.title;
-            $('dAuthor').textContent = 'by ' + book.author_name;
-            var facts = ['Published ' + book.published_year];
+            $('dAuthor').textContent = t('by_author', { name: book.author_name });
+            var facts = [t('fact_published', { year: book.published_year })];
             if (book.genre) facts.push(book.genre);
-            if (book.pages) facts.push(book.pages + ' pages');
-            facts.push(book.in_stock ? 'In stock' : 'Checked out');
-            if (book.isbn) facts.push('ISBN ' + book.isbn);
+            if (book.pages) facts.push(t('fact_pages', { n: book.pages }));
+            facts.push(book.in_stock ? t('fact_in') : t('fact_out'));
+            if (book.isbn) facts.push(t('fact_isbn', { isbn: book.isbn }));
             $('dFacts').replaceChildren.apply($('dFacts'), facts.map(function (f) { return el('li', { text: f }); }));
             $('dDesc').textContent = book.description || '';
             $('dDesc').hidden = !book.description;
 
             var summary = $('dSummary');
             if (book.average_rating == null) {
-                summary.replaceChildren(el('span', { class: 'muted', text: 'No reviews yet. Be the first to write one.' }));
+                summary.replaceChildren(el('span', { class: 'muted', text: t('no_reviews_first') }));
             } else {
                 summary.replaceChildren(
                     el('span', { class: 'big', text: book.average_rating.toFixed(1) }),
                     el('span', { class: 'stars', role: 'img', 'aria-label': ratingText(book), text: stars(book.average_rating) }));
             }
+            updateNav();
         }
 
         function formatDate(iso) {
-            return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+            return new Date(iso).toLocaleDateString(LOCALES[lang], { year: 'numeric', month: 'short', day: 'numeric' });
         }
 
         function loadReviews(bookId) {
             var list = $('dReviews'), more = $('dMore');
-            list.replaceChildren(el('li', { class: 'muted', text: 'Loading reviews' }));
+            list.replaceChildren(el('li', { class: 'muted', text: t('loading_reviews') }));
             more.hidden = true;
             return api('/api/reviews/?book=' + encodeURIComponent(bookId)).then(function (data) {
                 if (!current || current.id !== bookId) return;
                 if (!data.results.length) {
-                    list.replaceChildren(el('li', { class: 'muted', text: 'No reviews yet.' }));
+                    list.replaceChildren(el('li', { class: 'muted', text: t('no_reviews_dot') }));
                     return;
                 }
                 list.replaceChildren.apply(list, data.results.map(function (r) {
                     return el('li', null,
                         el('div', { class: 'who' },
                             el('strong', { text: r.reviewer_name }),
-                            el('span', { class: 'stars', role: 'img', 'aria-label': r.rating + ' out of 5', text: stars(r.rating) })),
+                            el('span', { class: 'stars', role: 'img', 'aria-label': t('rating_text', { n: r.rating }), text: stars(r.rating) })),
                         el('div', { class: 'when', text: formatDate(r.created_at) }),
                         r.comment ? el('p', { text: r.comment }) : null);
                 }));
                 if (data.count > data.results.length) {
-                    more.textContent = 'Showing the latest ' + data.results.length + ' of ' + data.count + ' reviews.';
+                    more.textContent = t('reviews_latest', { shown: data.results.length, count: data.count });
                     more.hidden = false;
                 }
             }).catch(function () {
-                list.replaceChildren(el('li', { class: 'muted', text: 'Could not load the reviews. Close this panel and open it again.' }));
+                list.replaceChildren(el('li', { class: 'muted', text: t('reviews_fail') }));
             });
         }
 
@@ -1169,6 +1549,7 @@
             loanNote = null;
             renderDetailHead(current);
             renderLoanBox(current);
+            updateNav();
             $('reviewForm').reset();
             $('rName').value = user ? user.username : '';
             $('rMsg').textContent = ''; $('rMsg').className = 'msg';
@@ -1176,6 +1557,20 @@
             if (!detail.open) detail.showModal();
             detail.scrollTop = 0;
             loadReviews(current.id);
+            syncOpenBook(current.id);
+        }
+
+        // The list on the page can be minutes old, and the line for a book moves. Ask again for the book that was just
+        // opened, and update the panel and its strip in place so the shelf does not redraw under the panel.
+        function syncOpenBook(id) {
+            api('/api/books/' + encodeURIComponent(id) + '/').then(function (fresh) {
+                if (!current || current.id !== id) return;
+                books = books.map(function (b) { return b.id === id ? fresh : b; });
+                current = fresh;
+                renderDetailHead(fresh);
+                renderLoanBox(fresh);
+                updateStatuses();
+            }).catch(function () {});
         }
 
         $('dClose').addEventListener('click', function () { detail.close(); });
@@ -1189,7 +1584,7 @@
         }
 
         function describeErrors(data) {
-            var names = { reviewer_name: 'Name', rating: 'Rating', comment: 'Comment', book: 'Book' };
+            var names = { reviewer_name: t('f_name'), rating: t('f_rating'), comment: t('f_comment'), book: t('f_book') };
             if (!data || typeof data !== 'object') return '';
             return Object.keys(data).map(function (key) {
                 var msgs = Array.isArray(data[key]) ? data[key].join(' ') : String(data[key]);
@@ -1203,19 +1598,19 @@
             var bookId = current.id;
             var name = $('rName').value.trim();
             var picked = document.querySelector('#reviewForm input[name="rating"]:checked');
-            if (!name) { setMsg('Enter your name.', 'error'); $('rName').focus(); return; }
-            if (!picked) { setMsg('Choose a rating from 1 to 5 stars.', 'error'); return; }
+            if (!name) { setMsg(t('need_name'), 'error'); $('rName').focus(); return; }
+            if (!picked) { setMsg(t('need_rating'), 'error'); return; }
 
             var submit = $('rSubmit');
             submit.disabled = true;
-            setMsg('Posting your review', '');
+            setMsg(t('posting'), '');
             api('/api/reviews/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
                 body: JSON.stringify({ book: bookId, reviewer_name: name, rating: Number(picked.value), comment: $('rComment').value.trim() })
             }).then(function () {
                 $('reviewForm').reset();
-                setMsg('Review posted.', 'ok');
+                setMsg(t('posted'), 'ok');
                 // Fetch the book again so the average rating on the shelf and in the panel updates.
                 return api('/api/books/' + bookId + '/').then(function (fresh) {
                     books = books.map(function (b) { return b.id === bookId ? fresh : b; });
@@ -1224,9 +1619,9 @@
                     loadStats();
                 }).then(function () { return loadReviews(bookId); });
             }).catch(function (err) {
-                if (err.status === 403) setMsg('Your session expired. Reload the page and try again.', 'error');
-                else if (err.status === 400) setMsg(describeErrors(err.data) || 'Check the form and try again.', 'error');
-                else setMsg('The review was not saved. Check that the server is running and try again.', 'error');
+                if (err.status === 403) setMsg(t('session_reload'), 'error');
+                else if (err.status === 400) setMsg(describeErrors(err.data) || t('review_check'), 'error');
+                else setMsg(t('review_fail'), 'error');
             }).then(function () { submit.disabled = false; });
         });
 
@@ -1236,20 +1631,18 @@
 
         function renderAccount() {
             $('whoName').hidden = !user;
-            $('whoName').textContent = user ? 'Signed in as ' + user.username : '';
+            $('whoName').textContent = user ? t('signed_in', { name: user.username }) : '';
             $('loansBtn').hidden = !user;
-            $('authBtn').textContent = user ? 'Log out' : 'Log in';
+            $('authBtn').textContent = user ? t('logout') : t('login');
         }
 
         function setAuthMode(mode) {
             authMode = mode;
             var login = mode === 'login';
-            $('aTitle').textContent = login ? 'Log in' : 'Create an account';
-            $('aIntro').textContent = login
-                ? 'Log in to borrow books and keep track of your loans.'
-                : 'Pick a username and a password of at least 8 characters. Avoid common passwords.';
-            $('aSubmit').textContent = login ? 'Log in' : 'Create account';
-            $('aSwitch').textContent = login ? 'Create an account' : 'I already have an account';
+            $('aTitle').textContent = login ? t('auth_login') : t('auth_register');
+            $('aIntro').textContent = login ? t('intro_login') : t('intro_register');
+            $('aSubmit').textContent = login ? t('login') : t('submit_register');
+            $('aSwitch').textContent = login ? t('auth_register') : t('switch_login');
             $('aPass').setAttribute('autocomplete', login ? 'current-password' : 'new-password');
         }
 
@@ -1264,11 +1657,12 @@
         }
 
         function applySession(session) {
-            rules = session.rules || rules;
+            rules = Object.assign({}, rules, session.rules);
             user = session.authenticated ? { username: session.username, is_staff: session.is_staff } : null;
             renderAccount();
-            if (user) return loadMyLoans();
+            if (user) return Promise.all([loadMyLoans(), loadMyReservations()]);
             myLoans = [];
+            myRes = [];
             refreshLoanUi();
         }
 
@@ -1291,7 +1685,7 @@
         $('authForm').addEventListener('submit', function (e) {
             e.preventDefault();
             var name = $('aUser').value.trim(), pass = $('aPass').value;
-            if (!name || !pass) { setAuthMsg('Enter your username and password.'); return; }
+            if (!name || !pass) { setAuthMsg(t('need_credentials')); return; }
             var submit = $('aSubmit');
             submit.disabled = true;
             setAuthMsg('');
@@ -1303,15 +1697,24 @@
                     });
                 })
                 .catch(function (err) {
+                    var codes = err.data && err.data.error_codes;
                     var fields = err.data && err.data.field_errors;
-                    if (fields) {
+                    if (codes) {
+                        setAuthMsg(Object.keys(codes).map(function (k) {
+                            return codes[k].map(function (item, i) {
+                                return errorText(item.code, item.params) || (fields && fields[k] && fields[k][i]) || '';
+                            }).join(' ');
+                        }).join(' '));
+                    } else if (fields) {
                         setAuthMsg(Object.keys(fields).map(function (k) { return fields[k].join(' '); }).join(' '));
+                    } else if (err.data && err.data.code && errorText(err.data.code)) {
+                        setAuthMsg(errorText(err.data.code));
                     } else if (err.data && err.data.detail) {
                         setAuthMsg(err.data.detail);
                     } else if (err.status === 403) {
-                        setAuthMsg('Your page is out of date. Reload it and try again.');
+                        setAuthMsg(t('page_old'));
                     } else {
-                        setAuthMsg('Could not reach the server. Check that it is running and try again.');
+                        setAuthMsg(t('no_server'));
                     }
                 })
                 .then(function () { submit.disabled = false; });
@@ -1335,7 +1738,7 @@
         }
 
         function overdueTag(loan) {
-            return loan.is_overdue ? el('span', { class: 'tag bad', text: 'Overdue' }) : null;
+            return loan.is_overdue ? el('span', { class: 'tag bad', text: t('overdue') }) : null;
         }
 
         function canRenew(loan) {
@@ -1345,74 +1748,117 @@
         function renderLoanBox(book) {
             var box = $('dLoan');
             var mine = loanFor(book.id);
+            var res = user ? resFor(book.id) : null;
+            var fullLoans = !!user && myLoans.length >= rules.max_active_loans;
             var kids = [];
+            function borrowBtn() {
+                return el('button', { class: 'btn', type: 'button', text: t('borrow_btn', { days: rules.loan_days }), disabled: fullLoans, onclick: function () { borrowBook(book); } });
+            }
+            function cancelBtn(label) {
+                return el('button', { class: 'btn ghost', type: 'button', text: label, onclick: function () { cancelReservation(res); } });
+            }
             if (mine) {
-                kids.push(el('div', { class: 'loan-title', text: 'You have this book' }));
-                kids.push(el('div', null, 'Due ', el('strong', { text: formatDate(mine.due_at) }), overdueTag(mine)));
+                kids.push(el('div', { class: 'loan-title', text: t('loan_have') }));
+                kids.push(el('div', null, t('due') + ' ', el('strong', { text: formatDate(mine.due_at) }), overdueTag(mine)));
                 kids.push(el('div', { class: 'row' },
-                    el('button', { class: 'btn ghost', type: 'button', text: 'Renew', disabled: !canRenew(mine), onclick: function () { renewLoan(mine); } }),
-                    el('button', { class: 'btn', type: 'button', text: 'Return', onclick: function () { returnLoan(mine); } })));
+                    el('button', { class: 'btn ghost', type: 'button', text: t('renew'), disabled: !canRenew(mine), onclick: function () { renewLoan(mine); } }),
+                    el('button', { class: 'btn', type: 'button', text: t('return'), onclick: function () { returnLoan(mine); } })));
                 if (!canRenew(mine)) {
-                    kids.push(el('div', { class: 'muted', text: mine.is_overdue
-                        ? 'Overdue loans cannot be renewed. Return the book.'
-                        : 'You have used all ' + rules.max_renewals + ' renewals for this loan.' }));
+                    kids.push(el('div', { class: 'muted', text: mine.is_overdue ? t('err_loan_overdue') : t('err_renewal_limit', { max: rules.max_renewals }) }));
                 }
-            } else if (book.in_stock) {
-                var full = user && myLoans.length >= rules.max_active_loans;
+            } else if (res && res.status === 'ready') {
+                kids.push(el('div', { class: 'loan-title', text: t('res_ready_title') }));
+                kids.push(el('div', { text: t('res_ready_text', { date: formatDate(res.expires_at) }) }));
+                kids.push(el('div', { class: 'row' }, borrowBtn(), cancelBtn(t('res_cancel'))));
+                if (fullLoans) kids.push(el('div', { class: 'muted', text: t('loan_full', { n: myLoans.length }) }));
+            } else if (res) {
+                kids.push(el('div', { class: 'loan-title', text: t('res_wait_title') }));
+                kids.push(el('div', { text: t('res_position', { n: res.position }) }));
+                if (book.queue_length > 1) kids.push(el('div', { class: 'muted', text: tn('queue', book.queue_length) }));
+                kids.push(el('div', { class: 'row' }, cancelBtn(t('res_leave'))));
+            } else if (book.in_stock && !book.held_until) {
                 if (!user) {
-                    kids.push(el('div', { class: 'muted', text: 'Log in to borrow this book for ' + rules.loan_days + ' days.' }));
-                    kids.push(el('div', null, el('button', { class: 'btn', type: 'button', text: 'Log in to borrow', onclick: function () { openAuth('login'); } })));
+                    kids.push(el('div', { class: 'muted', text: t('login_borrow', { days: rules.loan_days }) }));
+                    kids.push(el('div', null, el('button', { class: 'btn', type: 'button', text: t('login_borrow_btn'), onclick: function () { openAuth('login'); } })));
                 } else {
-                    kids.push(el('div', null, el('button', { class: 'btn', type: 'button', text: 'Borrow for ' + rules.loan_days + ' days', disabled: full, onclick: function () { borrowBook(book); } })));
-                    if (full) kids.push(el('div', { class: 'muted', text: 'You already have ' + myLoans.length + ' books on loan. Return one to borrow another.' }));
+                    kids.push(el('div', null, borrowBtn()));
+                    if (fullLoans) kids.push(el('div', { class: 'muted', text: t('loan_full', { n: myLoans.length }) }));
                 }
             } else {
-                kids.push(el('div', { class: 'loan-title', text: 'Checked out' }));
-                kids.push(el('div', { class: 'muted', text: book.due_at ? 'Expected back ' + formatDate(book.due_at) + '.' : 'Not available right now.' }));
+                var held = book.in_stock; // on the shelf, but kept for the first reader in line
+                kids.push(el('div', { class: 'loan-title', text: held ? t('held_title') : t('out_title') }));
+                kids.push(el('div', { class: 'muted', text: held ? t('held_text', { date: formatDate(book.held_until) })
+                    : (book.due_at ? t('back_expected', { date: formatDate(book.due_at) }) : t('not_available')) }));
+                if (book.queue_length) kids.push(el('div', { class: 'muted', text: tn('queue', book.queue_length) }));
+                if (!user) {
+                    kids.push(el('div', { class: 'muted', text: t('login_reserve') }));
+                    kids.push(el('div', null, el('button', { class: 'btn', type: 'button', text: t('login_reserve_btn'), onclick: function () { openAuth('login'); } })));
+                } else {
+                    var resFull = myRes.length >= rules.max_active_reservations;
+                    kids.push(el('div', null, el('button', { class: 'btn', type: 'button', text: t('reserve_btn'), disabled: resFull, onclick: function () { reserveBook(book); } })));
+                    if (resFull) kids.push(el('div', { class: 'muted', text: t('res_full', { n: myRes.length }) }));
+                }
             }
             kids.push(noteEl());
             box.replaceChildren.apply(box, kids);
         }
 
         function renderLoansPanel() {
-            $('lRules').textContent = 'Loans last ' + rules.loan_days + ' days. You can borrow up to ' + rules.max_active_loans +
-                ' books and renew each loan up to ' + rules.max_renewals + ' times.';
+            $('lRules').textContent = t('loans_rules', { days: rules.loan_days, max: rules.max_active_loans, renew: rules.max_renewals });
             $('lMsg').textContent = loanNote ? loanNote.text : '';
             $('lMsg').className = 'msg' + (loanNote ? ' ' + loanNote.kind : '');
+
             var list = $('lActive');
             if (!myLoans.length) {
-                list.replaceChildren(el('li', { class: 'muted', text: 'No books on loan. Open a book and select Borrow.' }));
-                return;
+                list.replaceChildren(el('li', { class: 'muted', text: t('no_loans') }));
+            } else {
+                list.replaceChildren.apply(list, myLoans.map(function (loan) {
+                    return el('li', null,
+                        el('span', { class: 't', text: loan.book_title }),
+                        el('span', { class: 'muted', text: t('by_author', { name: loan.author_name }) }),
+                        el('span', null, t('due') + ' ', el('strong', { text: formatDate(loan.due_at) }), overdueTag(loan),
+                            loan.renewals ? el('span', { class: 'muted', text: tn('renewed', loan.renewals) }) : null),
+                        el('div', { class: 'row' },
+                            el('button', { class: 'btn ghost small', type: 'button', text: t('renew'), disabled: !canRenew(loan), onclick: function () { renewLoan(loan); } }),
+                            el('button', { class: 'btn small', type: 'button', text: t('return'), onclick: function () { returnLoan(loan); } })));
+                }));
             }
-            list.replaceChildren.apply(list, myLoans.map(function (loan) {
-                return el('li', null,
-                    el('span', { class: 't', text: loan.book_title }),
-                    el('span', { class: 'muted', text: 'by ' + loan.author_name }),
-                    el('span', null, 'Due ', el('strong', { text: formatDate(loan.due_at) }), overdueTag(loan),
-                        loan.renewals ? el('span', { class: 'muted', text: ' (renewed ' + loan.renewals + (loan.renewals === 1 ? ' time)' : ' times)') }) : null),
-                    el('div', { class: 'row' },
-                        el('button', { class: 'btn ghost small', type: 'button', text: 'Renew', disabled: !canRenew(loan), onclick: function () { renewLoan(loan); } }),
-                        el('button', { class: 'btn small', type: 'button', text: 'Return', onclick: function () { returnLoan(loan); } })));
-            }));
+
+            var rlist = $('lReserved');
+            if (!myRes.length) {
+                rlist.replaceChildren(el('li', { class: 'muted', text: t('res_empty') }));
+            } else {
+                var full = myLoans.length >= rules.max_active_loans;
+                rlist.replaceChildren.apply(rlist, myRes.map(function (r) {
+                    var ready = r.status === 'ready';
+                    return el('li', null,
+                        el('span', { class: 't', text: r.book_title }),
+                        el('span', { class: 'muted', text: t('by_author', { name: r.author_name }) }),
+                        el('span', { text: ready ? t('res_until', { date: formatDate(r.expires_at) }) : t('res_position', { n: r.position }) }),
+                        el('div', { class: 'row' },
+                            ready ? el('button', { class: 'btn small', type: 'button', text: t('borrow_short'), disabled: full, onclick: function () { borrowBook({ id: r.book }); } }) : null,
+                            el('button', { class: 'btn ghost small', type: 'button', text: t('cancel'), onclick: function () { cancelReservation(r); } })));
+                }));
+            }
         }
 
         function loadLoanHistory() {
             var list = $('lHistory'), more = $('lMore');
             return api('/api/loans/?mine=true&active=false').then(function (data) {
                 if (!data.results.length) {
-                    list.replaceChildren(el('li', { class: 'muted', text: 'Nothing returned yet.' }));
+                    list.replaceChildren(el('li', { class: 'muted', text: t('hist_empty') }));
                     more.hidden = true;
                     return;
                 }
                 list.replaceChildren.apply(list, data.results.map(function (loan) {
                     return el('li', null,
                         el('span', { class: 't', text: loan.book_title }),
-                        el('span', { class: 'muted', text: 'Borrowed ' + formatDate(loan.borrowed_at) + ', returned ' + formatDate(loan.returned_at) }));
+                        el('span', { class: 'muted', text: t('hist_line', { a: formatDate(loan.borrowed_at), b: formatDate(loan.returned_at) }) }));
                 }));
                 more.hidden = data.count <= data.results.length;
-                more.textContent = 'Showing the latest ' + data.results.length + ' of ' + data.count + ' returned loans.';
+                more.textContent = t('hist_more', { shown: data.results.length, count: data.count });
             }).catch(function () {
-                list.replaceChildren(el('li', { class: 'muted', text: 'Could not load your history. Close this panel and open it again.' }));
+                list.replaceChildren(el('li', { class: 'muted', text: t('hist_fail') }));
             });
         }
 
@@ -1425,10 +1871,11 @@
         function openLoans() {
             loanNote = null;
             renderLoansPanel();
-            $('lHistory').replaceChildren(el('li', { class: 'muted', text: 'Loading' }));
+            $('lHistory').replaceChildren(el('li', { class: 'muted', text: t('loading') }));
             if (!loansDlg.open) loansDlg.showModal();
             loansDlg.scrollTop = 0;
             loadMyLoans();
+            loadMyReservations();
             loadLoanHistory();
         }
         $('loansBtn').addEventListener('click', openLoans);
@@ -1436,7 +1883,7 @@
         loansDlg.addEventListener('click', function (e) { if (e.target === loansDlg) loansDlg.close(); });
         loansDlg.addEventListener('close', playFlash);
 
-        // Reload what changed after a loan action: the book on the shelf, my loans, the overview.
+        // Reload what changed after a loan or reservation action: the book on the shelf, my loans and lines, the overview.
         function refreshBook(bookId) {
             return api('/api/books/' + encodeURIComponent(bookId) + '/').then(function (fresh) {
                 books = books.map(function (b) { return b.id === bookId ? fresh : b; });
@@ -1446,29 +1893,32 @@
         }
 
         function afterLoanChange(bookId) {
-            var jobs = [refreshBook(bookId).catch(function () {}), loadMyLoans(), loadStats()];
+            var jobs = [refreshBook(bookId).catch(function () {}), loadMyLoans(), loadMyReservations(), loadStats()];
             if (loansDlg.open) jobs.push(loadLoanHistory());
             return Promise.all(jobs);
         }
 
+        // Turn an API error into a message in the current language.
         function loanFailed(err, bookId) {
-            if (err.status === 403) {
-                loanNote = { text: 'Your session expired. Log in again.', kind: 'error' };
+            var code = err.data && err.data.code;
+            if (err.status === 403 && !code) {
+                loanNote = { text: t('session_login'), kind: 'error' };
                 loadSession();
-            } else if (err.data && err.data.detail) {
-                loanNote = { text: err.data.detail, kind: 'error' };
+            } else if (code || (err.data && err.data.detail)) {
+                var params = { max: code === 'renewal_limit' ? rules.max_renewals : code === 'reservation_limit' ? rules.max_active_reservations : rules.max_active_loans };
+                loanNote = { text: (code && errorText(code, params)) || err.data.detail, kind: 'error' };
                 if (err.status === 409) afterLoanChange(bookId); // the page was out of date, so sync it
             } else {
-                loanNote = { text: 'That did not work. Check that the server is running and try again.', kind: 'error' };
+                loanNote = { text: t('generic_fail'), kind: 'error' };
             }
             refreshLoanUi();
         }
 
         function borrowBook(book) {
-            loanNote = { text: 'Borrowing', kind: '' };
+            loanNote = { text: t('borrowing'), kind: '' };
             refreshLoanUi();
             send('POST', '/api/loans/', { book: book.id }).then(function (loan) {
-                loanNote = { text: 'Borrowed. Due ' + formatDate(loan.due_at) + '.', kind: 'ok' };
+                loanNote = { text: t('borrowed_ok', { date: formatDate(loan.due_at) }), kind: 'ok' };
                 flash = { id: book.id, kind: 'pulled' };
                 return afterLoanChange(book.id);
             }).catch(function (err) { loanFailed(err, book.id); });
@@ -1476,7 +1926,7 @@
 
         function returnLoan(loan) {
             send('POST', '/api/loans/' + loan.id + '/return/').then(function () {
-                loanNote = { text: 'Returned "' + loan.book_title + '". Thank you.', kind: 'ok' };
+                loanNote = { text: t('returned_ok', { title: loan.book_title }), kind: 'ok' };
                 flash = { id: loan.book, kind: 'pushed' };
                 return afterLoanChange(loan.book);
             }).catch(function (err) { loanFailed(err, loan.book); });
@@ -1484,12 +1934,132 @@
 
         function renewLoan(loan) {
             send('POST', '/api/loans/' + loan.id + '/renew/').then(function (fresh) {
-                loanNote = { text: 'Renewed. New due date: ' + formatDate(fresh.due_at) + '.', kind: 'ok' };
+                loanNote = { text: t('renewed_ok', { date: formatDate(fresh.due_at) }), kind: 'ok' };
                 return afterLoanChange(loan.book);
             }).catch(function (err) { loanFailed(err, loan.book); });
         }
 
+        /* ---------- reservations: join a line, leave it ---------- */
+
+        function resFor(bookId) {
+            return myRes.filter(function (r) { return r.book === bookId; })[0];
+        }
+
+        function loadMyReservations() {
+            if (!user) { myRes = []; refreshLoanUi(); return Promise.resolve(); }
+            return api('/api/reservations/?mine=true&active=true').then(function (data) {
+                myRes = data.results;
+                refreshLoanUi();
+            }).catch(function () {});
+        }
+
+        function reserveBook(book) {
+            loanNote = { text: t('reserving'), kind: '' };
+            refreshLoanUi();
+            send('POST', '/api/reservations/', { book: book.id }).then(function (r) {
+                loanNote = { text: t('reserved_ok', { n: r.position }), kind: 'ok' };
+                return afterLoanChange(book.id);
+            }).catch(function (err) { loanFailed(err, book.id); });
+        }
+
+        function cancelReservation(r) {
+            send('POST', '/api/reservations/' + r.id + '/cancel/').then(function () {
+                loanNote = { text: t('cancelled_ok'), kind: 'ok' };
+                return afterLoanChange(r.book);
+            }).catch(function (err) { loanFailed(err, r.book); });
+        }
+
+        /* ---------- keyboard shortcuts, previous/next book, Surprise me ---------- */
+
+        function openIndex() {
+            return current ? books.findIndex(function (b) { return b.id === current.id; }) : -1;
+        }
+
+        function updateNav() {
+            var i = openIndex();
+            $('dPrev').disabled = i < 1;
+            $('dNext').disabled = i < 0 || i >= books.length - 1;
+        }
+
+        function stepBook(delta) {
+            var i = openIndex();
+            var target = i < 0 ? null : books[i + delta];
+            if (target) showDetail(target);
+        }
+        $('dPrev').addEventListener('click', function () { stepBook(-1); });
+        $('dNext').addEventListener('click', function () { stepBook(1); });
+
+        // A random book that is on the shelf: ask how many there are, then fetch the page that holds the chosen one.
+        var surprising = false;
+        function surprise() {
+            if (surprising) return;
+            surprising = true;
+            $('pageInfo').textContent = '';
+            api('/api/books/?in_stock=true&page=1').then(function (first) {
+                if (!first.count) { $('pageInfo').textContent = t('surprise_none'); return; }
+                var n = Math.floor(Math.random() * first.count);
+                var page = Math.floor(n / PAGE_SIZE) + 1;
+                var data = page === 1 ? Promise.resolve(first) : api('/api/books/?in_stock=true&page=' + page);
+                return data.then(function (d) {
+                    var book = d.results[n % PAGE_SIZE];
+                    if (book) showDetail(book);
+                });
+            }).catch(function () {
+                $('pageInfo').textContent = t('surprise_fail');
+            }).then(function () { surprising = false; });
+        }
+        $('surpriseBtn').addEventListener('click', surprise);
+
+        document.addEventListener('keydown', function (e) {
+            if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+            var target = e.target, tag = target && target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (target && target.isContentEditable)) return;
+            if (authDlg.open) return;
+            if (detail.open) {
+                if (e.key === 'ArrowLeft') { e.preventDefault(); stepBook(-1); }
+                else if (e.key === 'ArrowRight') { e.preventDefault(); stepBook(1); }
+                return;
+            }
+            if (loansDlg.open) return;
+            if (e.key === '/') { e.preventDefault(); $('search').focus(); $('search').select(); }
+            else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); surprise(); }
+        });
+
+        /* ---------- language selector ---------- */
+
+        function setLang(next) {
+            if (!knownLang(next)) return;
+            lang = next;
+            try { localStorage.setItem('bookshelf-lang', lang); } catch (e) {}
+            try { // an explicit ?lang= in the address would win over this choice on reload
+                var p = new URLSearchParams(location.search);
+                if (p.has('lang')) {
+                    p.delete('lang');
+                    var q = p.toString();
+                    history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+                }
+            } catch (e) {}
+            applyStaticI18n();
+            syncToggle();
+            renderAccount();
+            loanNote = null;
+            if (authDlg.open) { setAuthMode(authMode); setAuthMsg(''); }
+            if (lastStats) renderStats(lastStats);
+            renderStatus();
+            paintShelf(false);
+            if (current) {
+                renderDetailHead(current);
+                renderLoanBox(current);
+                setMsg('', '');
+                loadReviews(current.id);
+            }
+            if (loansDlg.open) { renderLoansPanel(); loadLoanHistory(); }
+        }
+        $('langSel').addEventListener('change', function (e) { setLang(e.target.value); });
+
         /* ---------- start ---------- */
+        applyStaticI18n();
+        $('count').textContent = t('loading_books');
         readUrl();
         syncControls();
         loadSession();

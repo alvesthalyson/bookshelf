@@ -206,7 +206,10 @@ class AuthApiTests(TestCase):
         d = self.client.get("/api/auth/me/").json()
         self.assertFalse(d["authenticated"])
         self.assertIsNone(d["username"])
-        self.assertEqual(d["rules"], {"loan_days": 14, "max_active_loans": 3, "max_renewals": 2})
+        self.assertEqual(d["rules"], {
+            "loan_days": 14, "max_active_loans": 3, "max_renewals": 2,
+            "hold_days": 3, "max_active_reservations": 3,
+        })
 
     def test_register_login_logout(self):
         r = self.post(self.client, "/api/auth/register/", {"username": "Thalyson", "password": "a-long-pass-123"})

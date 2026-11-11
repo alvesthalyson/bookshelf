@@ -8,6 +8,7 @@ router.register("authors", views.AuthorViewSet)
 router.register("books", views.BookViewSet)
 router.register("reviews", views.ReviewViewSet)
 router.register("loans", views.LoanViewSet, basename="loan")
+router.register("reservations", views.ReservationViewSet, basename="reservation")
 
 urlpatterns = [
     path("stats/", views.stats, name="stats"),

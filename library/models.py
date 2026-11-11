@@ -88,3 +88,55 @@ class Loan(models.Model):
 
     def __str__(self):
         return f"{self.user} borrowed {self.book}"
+
+
+class Reservation(models.Model):
+    """A place in line for a book that is checked out. The line is first come, first served.
+
+    waiting   in line
+    ready     the book came back and is held for this reader until expires_at
+    fulfilled the reader borrowed the book
+    cancelled the reader left the line
+    expired   the reader did not borrow the book in time
+    """
+
+    WAITING = "waiting"
+    READY = "ready"
+    FULFILLED = "fulfilled"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+    STATUS_CHOICES = [
+        (WAITING, "Waiting"),
+        (READY, "Ready"),
+        (FULFILLED, "Fulfilled"),
+        (CANCELLED, "Cancelled"),
+        (EXPIRED, "Expired"),
+    ]
+    ACTIVE = (WAITING, READY)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reservations"
+    )
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="reservations")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=WAITING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    ready_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        # The id grows with time, so ordering by it is the order of the line.
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "book"],
+                condition=models.Q(status__in=["waiting", "ready"]),
+                name="one_active_reservation_per_user_and_book",
+            )
+        ]
+
+    @property
+    def is_active(self):
+        return self.status in self.ACTIVE
+
+    def __str__(self):
+        return f"{self.user} reserved {self.book} ({self.status})"

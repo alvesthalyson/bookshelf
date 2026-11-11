@@ -77,6 +77,10 @@ LOAN_DAYS = 14
 MAX_ACTIVE_LOANS = 3
 MAX_RENEWALS = 2
 
+# Reservation rules
+HOLD_DAYS = 3  # days a returned book is held for the first reader in line
+MAX_ACTIVE_RESERVATIONS = 3
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Tokyo"
 USE_I18N = True

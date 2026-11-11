@@ -1,11 +1,14 @@
 """Business rules for loans. The views only translate HTTP to these functions."""
+import logging
 from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Book, Loan
+from .models import Book, Loan, Reservation
+
+logger = logging.getLogger(__name__)
 
 
 def loan_days():
@@ -18,6 +21,14 @@ def max_active_loans():
 
 def max_renewals():
     return getattr(settings, "MAX_RENEWALS", 2)
+
+
+def hold_days():
+    return getattr(settings, "HOLD_DAYS", 3)
+
+
+def max_active_reservations():
+    return getattr(settings, "MAX_ACTIVE_RESERVATIONS", 3)
 
 
 class LoanError(Exception):
@@ -60,6 +71,35 @@ class NotYourLoanError(LoanError):
     code = "not_your_loan"
 
 
+class BookReservedError(LoanError):
+    code = "book_reserved"
+
+
+class BookAvailableError(LoanError):
+    code = "book_available"
+
+
+class AlreadyHaveBookError(LoanError):
+    code = "already_have_book"
+
+
+class AlreadyReservedError(LoanError):
+    code = "already_reserved"
+
+
+class ReservationLimitError(LoanError):
+    code = "reservation_limit"
+
+
+class ReservationNotActiveError(LoanError):
+    code = "reservation_not_active"
+
+
+class NotYourReservationError(LoanError):
+    status_code = 403
+    code = "not_your_reservation"
+
+
 def _active_loans(user):
     return Loan.objects.filter(user=user, returned_at__isnull=True)
 
@@ -71,8 +111,13 @@ def create_loan(user, book):
     book = Book.objects.select_for_update().get(pk=book.pk)
     now = timezone.now()
 
+    expire_due_holds(book)
+
     if not book.in_stock or Loan.objects.filter(book=book, returned_at__isnull=True).exists():
         raise BookUnavailableError("This book is checked out. Try again after it is returned.")
+    hold = Reservation.objects.filter(book=book, status=Reservation.READY).first()
+    if hold is not None and hold.user_id != user.id:
+        raise BookReservedError("This book is held for another reader. You can join the line to borrow it next.")
     if _active_loans(user).filter(due_at__lt=now).exists():
         raise OverdueLoansError("Return your overdue books before borrowing another one.")
     if _active_loans(user).count() >= max_active_loans():
@@ -83,6 +128,9 @@ def create_loan(user, book):
     loan = Loan.objects.create(user=user, book=book, due_at=now + timedelta(days=loan_days()))
     book.in_stock = False
     book.save(update_fields=["in_stock"])
+    if hold is not None:  # the reader this book was held for has borrowed it
+        hold.status = Reservation.FULFILLED
+        hold.save(update_fields=["status"])
     return loan
 
 
@@ -101,6 +149,7 @@ def return_loan(loan_id, user):
     loan.returned_at = timezone.now()
     loan.save(update_fields=["returned_at"])
     Book.objects.filter(pk=loan.book_id).update(in_stock=True)
+    promote_next(loan.book)
     return loan
 
 
@@ -115,3 +164,99 @@ def renew_loan(loan_id, user):
     loan.renewals += 1
     loan.save(update_fields=["due_at", "renewals"])
     return loan
+
+
+# ---------- reservations ----------
+
+
+def notify_reservation_ready(reservation):
+    """Stub. A real project would send an email here, so this writes a log line instead."""
+    logger.info(
+        "Reservation ready: %s can borrow %r until %s",
+        reservation.user, reservation.book.title, reservation.expires_at,
+    )
+
+
+def _on_the_shelf(book):
+    """True when the book is in stock and nobody has it on loan. Reads the database, not the object."""
+    return (
+        Book.objects.filter(pk=book.pk, in_stock=True).exists()
+        and not Loan.objects.filter(book=book, returned_at__isnull=True).exists()
+    )
+
+
+def promote_next(book):
+    """Hold a free book for the first reader in line, for hold_days() days. Call it inside a transaction."""
+    if not _on_the_shelf(book):
+        return None
+    if Reservation.objects.filter(book=book, status=Reservation.READY).exists():
+        return None
+    first = (
+        Reservation.objects.select_for_update()
+        .select_related("user", "book")
+        .filter(book=book, status=Reservation.WAITING)
+        .order_by("id")
+        .first()
+    )
+    if first is None:
+        return None
+    now = timezone.now()
+    first.status = Reservation.READY
+    first.ready_at = now
+    first.expires_at = now + timedelta(days=hold_days())
+    first.save(update_fields=["status", "ready_at", "expires_at"])
+    notify_reservation_ready(first)
+    return first
+
+
+def expire_due_holds(book=None):
+    """Release holds that ran out, and hold the book for the next reader in line.
+
+    There is no background job, so this runs whenever the page asks for books, reservations or a loan.
+    """
+    due = Reservation.objects.filter(status=Reservation.READY, expires_at__lt=timezone.now())
+    if book is not None:
+        due = due.filter(book=book)
+    if not due.exists():
+        return
+    with transaction.atomic():
+        for reservation in due.select_for_update().select_related("book"):
+            reservation.status = Reservation.EXPIRED
+            reservation.save(update_fields=["status"])
+            promote_next(reservation.book)
+
+
+@transaction.atomic
+def reserve(user, book):
+    """Join the line for a book that is checked out."""
+    book = Book.objects.select_for_update().get(pk=book.pk)
+    expire_due_holds(book)
+
+    if Loan.objects.filter(book=book, user=user, returned_at__isnull=True).exists():
+        raise AlreadyHaveBookError("You already have this book.")
+    if Reservation.objects.filter(book=book, user=user, status__in=Reservation.ACTIVE).exists():
+        raise AlreadyReservedError("You are already in line for this book.")
+    held = Reservation.objects.filter(book=book, status=Reservation.READY).exists()
+    if _on_the_shelf(book) and not held:
+        raise BookAvailableError("This book is on the shelf. Borrow it instead.")
+    if Reservation.objects.filter(user=user, status__in=Reservation.ACTIVE).count() >= max_active_reservations():
+        raise ReservationLimitError(
+            f"You can be in line for {max_active_reservations()} books at a time. Leave one line to join another."
+        )
+    return Reservation.objects.create(user=user, book=book)
+
+
+@transaction.atomic
+def cancel_reservation(reservation_id, user):
+    """Leave the line. If the book was held for this reader, it goes to the next one."""
+    reservation = Reservation.objects.select_for_update().select_related("book").get(pk=reservation_id)
+    if reservation.user_id != user.id and not user.is_staff:
+        raise NotYourReservationError("This reservation belongs to another user.")
+    if reservation.status not in Reservation.ACTIVE:
+        raise ReservationNotActiveError("This reservation is no longer active.")
+    was_ready = reservation.status == Reservation.READY
+    reservation.status = Reservation.CANCELLED
+    reservation.save(update_fields=["status"])
+    if was_ready:
+        promote_next(reservation.book)
+    return reservation

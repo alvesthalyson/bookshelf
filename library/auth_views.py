@@ -30,15 +30,20 @@ def _session(request):
             "loan_days": services.loan_days(),
             "max_active_loans": services.max_active_loans(),
             "max_renewals": services.max_renewals(),
+            "hold_days": services.hold_days(),
+            "max_active_reservations": services.max_active_reservations(),
         },
     }
     return data
 
 
-def _error(detail, code, status=400, field_errors=None):
+def _error(detail, code, status=400, field_errors=None, error_codes=None):
     body = {"detail": detail, "code": code}
     if field_errors:
         body["field_errors"] = field_errors
+    if error_codes:
+        # Machine-readable version of field_errors, so the page can show the message in its own language.
+        body["error_codes"] = error_codes
     return JsonResponse(body, status=status)
 
 
@@ -74,20 +79,29 @@ def register_view(request):
     username = str(data.get("username", "")).strip()
     password = str(data.get("password", ""))
     errors = {}
+    codes = {}
 
     if not USERNAME_RE.match(username):
         errors["username"] = ["Use 3 to 30 letters, numbers or . @ + - _ characters."]
+        codes["username"] = [{"code": "username_invalid", "params": {}}]
     elif User.objects.filter(username__iexact=username).exists():
         errors["username"] = ["This username is taken."]
+        codes["username"] = [{"code": "username_taken", "params": {}}]
 
     if not errors:
         try:
             password_validation.validate_password(password, user=User(username=username))
         except ValidationError as exc:
             errors["password"] = list(exc.messages)
+            codes["password"] = [
+                {"code": item.code, "params": item.params or {}} for item in exc.error_list
+            ]
 
     if errors:
-        return _error("Check the form and try again.", "validation_error", field_errors=errors)
+        return _error(
+            "Check the form and try again.", "validation_error",
+            field_errors=errors, error_codes=codes,
+        )
 
     user = User.objects.create_user(username=username, password=password)
     login(request, user)

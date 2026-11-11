@@ -2,7 +2,7 @@ from datetime import date
 
 from rest_framework import serializers
 
-from .models import Author, Book, Loan, Review
+from .models import Author, Book, Loan, Reservation, Review
 
 
 class BookInAuthorSerializer(serializers.ModelSerializer):
@@ -25,13 +25,15 @@ class BookSerializer(serializers.ModelSerializer):
     author_name = serializers.CharField(source="author.name", read_only=True)
     average_rating = serializers.SerializerMethodField()
     due_at = serializers.SerializerMethodField()
+    queue_length = serializers.SerializerMethodField()
+    held_until = serializers.SerializerMethodField()
 
     class Meta:
         model = Book
         fields = [
             "id", "title", "author", "author_name", "published_year",
             "isbn", "in_stock", "genre", "pages", "description", "cover_url",
-            "average_rating", "due_at", "created_at",
+            "average_rating", "due_at", "queue_length", "held_until", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 
@@ -42,6 +44,15 @@ class BookSerializer(serializers.ModelSerializer):
     def get_due_at(self, obj):
         """When the current loan ends, if the book is checked out. Never says who has it."""
         value = getattr(obj, "active_due", None)
+        return value.isoformat() if value is not None else None
+
+    def get_queue_length(self, obj):
+        """How many readers are in line for the book, including the one it is held for."""
+        return int(getattr(obj, "queue", 0) or 0)
+
+    def get_held_until(self, obj):
+        """When the hold on a returned book ends. It never says who the book is held for."""
+        value = getattr(obj, "held", None)
         return value.isoformat() if value is not None else None
 
     def validate_published_year(self, value):
@@ -91,3 +102,28 @@ class LoanSerializer(serializers.ModelSerializer):
         # The one-active-loan-per-book rule is checked in services.create_loan (and by the database),
         # so DRF does not need to build its own unique validator from the constraint.
         validators = []
+
+
+class ReservationSerializer(serializers.ModelSerializer):
+    book_title = serializers.CharField(source="book.title", read_only=True)
+    author_name = serializers.CharField(source="book.author.name", read_only=True)
+    position = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reservation
+        fields = [
+            "id", "book", "book_title", "author_name", "status", "position",
+            "created_at", "ready_at", "expires_at",
+        ]
+        read_only_fields = ["id", "status", "created_at", "ready_at", "expires_at"]
+        # The one-active-reservation rule is checked in services.reserve (and by the database).
+        validators = []
+
+    def get_position(self, obj):
+        """Place in line, starting at 1. Empty once the reservation is over."""
+        if not obj.is_active:
+            return None
+        ahead = Reservation.objects.filter(
+            book=obj.book_id, status__in=Reservation.ACTIVE, id__lt=obj.id
+        ).count()
+        return ahead + 1
