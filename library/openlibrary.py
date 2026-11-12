@@ -10,6 +10,9 @@ import urllib.parse
 import urllib.request
 
 BOOKS_URL = "https://openlibrary.org/api/books"
+SEARCH_URL = "https://openlibrary.org/search.json"
+SEARCH_FIELDS = "title,author_name,first_publish_year,isbn,number_of_pages_median,subject,cover_i"
+SEARCH_LIMIT = 10
 COVER_HOST = "https://covers.openlibrary.org/"
 USER_AGENT = "BookshelfSchoolProject/1.0 (https://github.com/alvesthalyson/bookshelf)"
 TIMEOUT = 10
@@ -28,6 +31,10 @@ class InvalidIsbnError(IsbnError):
 class IsbnNotFoundError(IsbnError):
     code = "isbn_not_found"
     status_code = 404
+
+
+class QueryTooShortError(IsbnError):
+    code = "query_too_short"
 
 
 class LookupUnavailableError(IsbnError):
@@ -97,3 +104,46 @@ def lookup(isbn13):
         "genre": (subjects[0].get("name") if subjects else "") or "",
         "cover_url": cover if cover.startswith(COVER_HOST) else "",
     }
+
+
+def looks_like_isbn(text):
+    """True when the text is only digits, hyphens, spaces and a final X, so it should be looked up as an ISBN."""
+    raw = re.sub(r"[\s-]+", "", str(text or ""))
+    return bool(re.fullmatch(r"\d{9}[\dX]|\d{13}", raw, flags=re.I))
+
+
+def _first_valid_isbn(candidates):
+    for value in candidates or []:
+        try:
+            return normalize_isbn(value)
+        except InvalidIsbnError:
+            continue
+    return None
+
+
+def search(query):
+    """Books matching a title and/or author. Only results with a usable ISBN are kept, because the shelf
+    is filled through the ISBN form. Each item has the same keys as lookup()."""
+    query = re.sub(r"\s+", " ", str(query or "")).strip()
+    if len(query) < 3:
+        raise QueryTooShortError("Type at least 3 letters.")
+    data = _get_json(SEARCH_URL + "?" + urllib.parse.urlencode(
+        {"q": query, "limit": SEARCH_LIMIT, "fields": SEARCH_FIELDS}))
+    results = []
+    for doc in (data.get("docs") if isinstance(data, dict) else None) or []:
+        isbn = _first_valid_isbn(doc.get("isbn"))
+        if not isbn or not doc.get("title"):
+            continue
+        authors = doc.get("author_name") or []
+        subjects = doc.get("subject") or []
+        year = doc.get("first_publish_year")
+        results.append({
+            "isbn": isbn,
+            "title": str(doc["title"]).strip(),
+            "author_name": (authors[0] if authors else "") or "",
+            "published_year": year if isinstance(year, int) else None,
+            "pages": doc.get("number_of_pages_median") or None,
+            "genre": (subjects[0] if subjects else "") or "",
+            "cover_url": f"{COVER_HOST}b/id/{int(doc['cover_i'])}-L.jpg" if isinstance(doc.get("cover_i"), int) else "",
+        })
+    return results

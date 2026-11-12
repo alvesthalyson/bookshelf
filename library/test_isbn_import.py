@@ -141,3 +141,68 @@ class IsbnApiTests(TestCase):
         r = self.staff.post("/api/books/import/", dict(self.form, title=""), format="json")
         self.assertEqual(r.status_code, 400)
         self.assertEqual(Author.objects.count(), 0)
+
+
+class TitleSearchTests(SimpleTestCase):
+    DOCS = {"docs": [
+        {"title": "Kokoro", "author_name": ["Natsume Soseki", "Other"], "first_publish_year": 1914, "cover_i": 8231856,
+         "isbn": ["not-an-isbn", "0306406152"], "number_of_pages_median": 248, "subject": ["Fiction"]},
+        {"title": "No ISBN here", "isbn": []},
+        {"title": "Only bad ISBNs", "isbn": ["1234567890123"]},
+        {"author_name": ["Nobody"], "isbn": ["9780306406157"]},  # no title
+        {"title": "Bare", "isbn": ["9780306406157"], "cover_i": "x"},
+    ]}
+
+    def test_looks_like_isbn(self):
+        for yes in ("978-4-10-101013-7", "0306406152", "080442957x", " 9780306406157 "):
+            self.assertTrue(openlibrary.looks_like_isbn(yes), yes)
+        for no in ("Kokoro", "murakami 1984", "12345", ""):
+            self.assertFalse(openlibrary.looks_like_isbn(no), no)
+
+    def test_search_keeps_only_books_with_a_valid_isbn_and_title(self):
+        with mock.patch("library.openlibrary._get_json", return_value=self.DOCS) as get:
+            results = openlibrary.search("  kokoro   soseki ")
+        self.assertIn("q=kokoro+soseki", get.call_args[0][0])
+        self.assertEqual([r["title"] for r in results], ["Kokoro", "Bare"])
+        self.assertEqual(results[0], {
+            "isbn": "9780306406157", "title": "Kokoro", "author_name": "Natsume Soseki", "published_year": 1914,
+            "pages": 248, "genre": "Fiction", "cover_url": "https://covers.openlibrary.org/b/id/8231856-L.jpg",
+        })
+        self.assertEqual((results[1]["author_name"], results[1]["cover_url"], results[1]["published_year"]), ("", "", None))
+
+    def test_short_query_is_refused_without_calling_open_library(self):
+        with mock.patch("library.openlibrary._get_json") as get:
+            with self.assertRaises(openlibrary.QueryTooShortError):
+                openlibrary.search(" a ")
+        get.assert_not_called()
+
+    def test_unexpected_answer_gives_no_results(self):
+        with mock.patch("library.openlibrary._get_json", return_value=["x"]):
+            self.assertEqual(openlibrary.search("kokoro"), [])
+
+
+class TitleSearchApiTests(TestCase):
+    def setUp(self):
+        User.objects.create_user("ana", password="s3cret-pass-1")
+        User.objects.create_user("lib", password="s3cret-pass-4", is_staff=True)
+        self.reader = APIClient(); self.reader.login(username="ana", password="s3cret-pass-1")
+        self.staff = APIClient(); self.staff.login(username="lib", password="s3cret-pass-4")
+
+    def test_only_staff_can_search(self):
+        self.assertEqual(APIClient().get("/api/books/search-online/", {"q": "kokoro"}).status_code, 403)
+        self.assertEqual(self.reader.get("/api/books/search-online/", {"q": "kokoro"}).status_code, 403)
+
+    def test_results_mark_books_already_on_the_shelf(self):
+        author = Author.objects.create(name="Natsume Soseki")
+        Book.objects.create(title="Kokoro", author=author, published_year=1914, isbn="0306406152")  # old ISBN-10 form
+        with mock.patch("library.openlibrary._get_json", return_value=TitleSearchTests.DOCS):
+            r = self.staff.get("/api/books/search-online/", {"q": "kokoro"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([(i["title"], i["on_shelf"]) for i in r.data["results"]], [("Kokoro", True), ("Bare", True)])
+
+    def test_short_query_and_unreachable_service_give_codes(self):
+        r = self.staff.get("/api/books/search-online/", {"q": "a"})
+        self.assertEqual((r.status_code, r.data["code"]), (400, "query_too_short"))
+        with mock.patch("library.openlibrary._get_json", side_effect=openlibrary.LookupUnavailableError("down")):
+            r = self.staff.get("/api/books/search-online/", {"q": "kokoro"})
+        self.assertEqual((r.status_code, r.data["code"]), (503, "lookup_unavailable"))

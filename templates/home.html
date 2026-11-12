@@ -554,6 +554,13 @@
         .isbn-form .row input { flex: 1; min-width: 0; }
         .isbn-preview { display: flex; flex-direction: column; gap: 10px; }
         .isbn-preview .isbn-cover img { width: 84px; border-radius: 4px; display: block; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+        .isbn-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+        .isbn-results button { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+        .isbn-results button:hover:not(:disabled), .isbn-results button:focus-visible { border-color: var(--accent, currentColor); }
+        .isbn-results button:disabled { opacity: 0.55; cursor: default; }
+        .isbn-results img, .isbn-results .nocover { width: 34px; height: 48px; flex: none; object-fit: cover; border-radius: 3px; background: var(--line); }
+        .isbn-results .r-title { font-weight: 700; display: block; }
+        .isbn-results .r-sub { font-size: 0.85em; opacity: 0.75; }
         .isbn-small { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .fav-row { padding: 12px 0 0; }
         #dFav[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
@@ -779,13 +786,14 @@
             </div>
             <div class="msg" id="stMsg" role="status"></div>
             <details class="isbn-box" id="isbnBox">
-                <summary data-i18n="isbn_title">Add a book by ISBN</summary>
+                <summary data-i18n="isbn_title">Add a book (title, author or ISBN)</summary>
                 <form class="isbn-form" id="isbnForm" novalidate autocomplete="off">
                     <div class="row">
-                        <input type="text" id="isbnIn" inputmode="numeric" placeholder="978-4-10-101013-7" aria-label="ISBN" spellcheck="false">
+                        <input type="text" id="isbnIn" data-i18n-placeholder="isbn_placeholder" data-i18n-aria-label="isbn_label" placeholder="Kokoro, Soseki, 978-4-10-101013-7" aria-label="Title, author or ISBN" spellcheck="false">
                         <button class="btn" id="isbnGo" type="submit" data-i18n="isbn_lookup">Look up</button>
                     </div>
                     <div class="msg" id="isbnMsg" role="status"></div>
+                    <ul class="isbn-results" id="isbnResults" hidden></ul>
                     <div class="isbn-preview" id="isbnPreview" hidden>
                         <div class="isbn-cover" id="isbnCover"></div>
                         <label class="field"><span data-i18n="f_title">Title</span><input type="text" id="ipTitle" maxlength="200"></label>
@@ -952,7 +960,8 @@
                 loans_count_one: '{n} loan', loans_count_many: '{n} loans',
                 staff_weeks: 'Loans per week', staff_genres: 'Loans by genre', chart_week_aria: 'Loans per week over the last 8 weeks: {total} in total, {max} in the busiest week.',
                 chart_table: 'Show as table', col_week: 'Week of', col_loans: 'Loans', chart_empty: 'No loans in the last 8 weeks.', genre_empty: 'No loans with a genre yet.',
-                isbn_title: 'Add a book by ISBN', isbn_lookup: 'Look up', isbn_looking: 'Looking it up', isbn_need: 'Enter an ISBN (10 or 13 digits).',
+                isbn_placeholder: 'Title, author or ISBN', isbn_label: 'Title, author or ISBN', isbn_pick: 'Pick the book you mean.', isbn_none: 'Open Library found no book with an ISBN for this search. Try other words, or add the book in the admin.', isbn_on_shelf: 'Already on the shelf', err_query_too_short: 'Type at least 3 letters.',
+                isbn_title: 'Add a book (title, author or ISBN)', isbn_lookup: 'Look up', isbn_looking: 'Looking it up', isbn_need: 'Type a title, an author or an ISBN.',
                 isbn_found: 'Found it. Check the details, fix anything that is wrong, then add the book.', isbn_add: 'Add to the shelf', isbn_adding: 'Adding the book',
                 isbn_added: '"{title}" was added to the shelf.', isbn_missing: 'The title, the author and the year are needed.',
                 f_title: 'Title', f_author_name: 'Author', f_year: 'Year', f_pages: 'Pages', f_genre: 'Genre',
@@ -1066,7 +1075,8 @@
                 loans_count_one: '貸出{n}回', loans_count_many: '貸出{n}回',
                 staff_weeks: '週ごとの貸出数', staff_genres: 'ジャンル別の貸出数', chart_week_aria: '直近8週間の週ごとの貸出数：合計{total}回、最も多い週は{max}回。',
                 chart_table: '表で見る', col_week: '週の開始日', col_loans: '貸出数', chart_empty: '直近8週間の貸出はありません。', genre_empty: 'ジャンル付きの貸出はまだありません。',
-                isbn_title: 'ISBNで本を追加', isbn_lookup: '検索', isbn_looking: '検索中', isbn_need: 'ISBN（10桁または13桁）を入力してください。',
+                isbn_placeholder: 'タイトル、著者、またはISBN', isbn_label: 'タイトル、著者、またはISBN', isbn_pick: '追加する本を選んでください。', isbn_none: 'この検索ではISBN付きの本が見つかりませんでした。別の言葉で試すか、管理画面から追加してください。', isbn_on_shelf: 'すでに棚にあります', err_query_too_short: '3文字以上入力してください。',
+                isbn_title: '本を追加（タイトル・著者・ISBN）', isbn_lookup: '検索', isbn_looking: '検索中', isbn_need: 'タイトル、著者、またはISBNを入力してください。',
                 isbn_found: '見つかりました。内容を確認し、違うところは直してから追加してください。', isbn_add: '棚に追加', isbn_adding: '追加中',
                 isbn_added: '「{title}」を棚に追加しました。', isbn_missing: 'タイトル、著者、刊行年が必要です。',
                 f_title: 'タイトル', f_author_name: '著者', f_year: '刊行年', f_pages: 'ページ数', f_genre: 'ジャンル',
@@ -1180,7 +1190,8 @@
                 loans_count_one: '{n} empréstimo', loans_count_many: '{n} empréstimos',
                 staff_weeks: 'Empréstimos por semana', staff_genres: 'Empréstimos por gênero', chart_week_aria: 'Empréstimos por semana nas últimas 8 semanas: {total} no total, {max} na semana mais movimentada.',
                 chart_table: 'Ver como tabela', col_week: 'Semana de', col_loans: 'Empréstimos', chart_empty: 'Nenhum empréstimo nas últimas 8 semanas.', genre_empty: 'Ainda não há empréstimos com gênero.',
-                isbn_title: 'Adicionar livro por ISBN', isbn_lookup: 'Buscar', isbn_looking: 'Buscando', isbn_need: 'Digite um ISBN (10 ou 13 dígitos).',
+                isbn_placeholder: 'Título, autor ou ISBN', isbn_label: 'Título, autor ou ISBN', isbn_pick: 'Escolha o livro que você quer.', isbn_none: 'A Open Library não achou livro com ISBN para esta busca. Tente outras palavras ou cadastre o livro na administração.', isbn_on_shelf: 'Já está na estante', err_query_too_short: 'Digite pelo menos 3 letras.',
+                isbn_title: 'Adicionar livro (título, autor ou ISBN)', isbn_lookup: 'Buscar', isbn_looking: 'Buscando', isbn_need: 'Digite um título, um autor ou um ISBN.',
                 isbn_found: 'Encontrado. Confira os dados, corrija o que estiver errado e adicione o livro.', isbn_add: 'Adicionar à estante', isbn_adding: 'Adicionando o livro',
                 isbn_added: '"{title}" foi adicionado à estante.', isbn_missing: 'São necessários o título, o autor e o ano.',
                 f_title: 'Título', f_author_name: 'Autor', f_year: 'Ano', f_pages: 'Páginas', f_genre: 'Gênero',
@@ -2383,9 +2394,46 @@
 
         function resetIsbnForm() {
             isbnFound = null;
+            hideResults();
             $('isbnPreview').hidden = true;
             ['isbnIn', 'ipTitle', 'ipAuthor', 'ipYear', 'ipPages', 'ipGenre'].forEach(function (id) { $(id).value = ''; });
             $('isbnCover').replaceChildren();
+        }
+
+        function showFound(found) {
+            isbnFound = found;
+            $('ipTitle').value = found.title;
+            $('ipAuthor').value = found.author_name;
+            $('ipYear').value = found.published_year || '';
+            $('ipPages').value = found.pages || '';
+            $('ipGenre').value = found.genre;
+            $('isbnCover').replaceChildren.apply($('isbnCover'), found.cover_url ? [el('img', { src: found.cover_url, alt: '' })] : []);
+            $('isbnPreview').hidden = false;
+            isbnNote(t('isbn_found'), 'ok');
+        }
+
+        function hideResults() {
+            $('isbnResults').hidden = true;
+            $('isbnResults').replaceChildren();
+        }
+
+        function showResults(list) {
+            var ul = $('isbnResults');
+            ul.replaceChildren();
+            list.forEach(function (item) {
+                var sub = [item.author_name, item.published_year].filter(Boolean).join(' · ');
+                var btn = el('button', { type: 'button' },
+                    item.cover_url ? el('img', { src: item.cover_url, alt: '', loading: 'lazy' }) : el('span', { class: 'nocover' }),
+                    el('span', {},
+                        el('span', { class: 'r-title', text: item.title }),
+                        el('span', { class: 'r-sub', text: item.on_shelf ? sub + ' · ' + t('isbn_on_shelf') : sub })
+                    )
+                );
+                if (item.on_shelf) btn.disabled = true;
+                btn.addEventListener('click', function () { hideResults(); showFound(item); });
+                ul.appendChild(el('li', {}, btn));
+            });
+            ul.hidden = false;
         }
 
         $('isbnForm').addEventListener('submit', function (e) {
@@ -2394,18 +2442,18 @@
             if (!value) { isbnNote(t('isbn_need'), 'error'); return; }
             isbnNote(t('isbn_looking'), '');
             $('isbnPreview').hidden = true;
+            isbnFound = null;
+            hideResults();
             $('isbnGo').disabled = true;
-            api('/api/books/lookup/?isbn=' + encodeURIComponent(value)).then(function (found) {
-                isbnFound = found;
-                $('ipTitle').value = found.title;
-                $('ipAuthor').value = found.author_name;
-                $('ipYear').value = found.published_year || '';
-                $('ipPages').value = found.pages || '';
-                $('ipGenre').value = found.genre;
-                $('isbnCover').replaceChildren.apply($('isbnCover'), found.cover_url ? [el('img', { src: found.cover_url, alt: '' })] : []);
-                $('isbnPreview').hidden = false;
-                isbnNote(t('isbn_found'), 'ok');
-            }).catch(function (err) {
+            var byIsbn = /^[0-9Xx\s-]+$/.test(value) && value.replace(/[\s-]/g, '').length >= 10;
+            var request = byIsbn
+                ? api('/api/books/lookup/?isbn=' + encodeURIComponent(value)).then(showFound)
+                : api('/api/books/search-online/?q=' + encodeURIComponent(value)).then(function (data) {
+                    if (!data.results.length) { isbnNote(t('isbn_none'), 'error'); return; }
+                    showResults(data.results);
+                    isbnNote(t('isbn_pick'), 'ok');
+                });
+            request.catch(function (err) {
                 isbnNote(apiProblem(err), 'error');
             }).then(function () { $('isbnGo').disabled = false; });
         });

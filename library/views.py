@@ -102,6 +102,17 @@ class BookViewSet(viewsets.ModelViewSet):
         except openlibrary.IsbnError as exc:
             return self._isbn_error(exc)
 
+    @action(detail=False, methods=["get"], url_path="search-online", permission_classes=[IsAdminUser])
+    def search_online(self, request):
+        """Librarians only: look books up in Open Library by title or author (?q=...). Books already on the shelf are marked."""
+        try:
+            results = openlibrary.search(request.query_params.get("q"))
+        except openlibrary.IsbnError as exc:
+            return self._isbn_error(exc)
+        for item in results:
+            item["on_shelf"] = bool(self._isbn_taken(item["isbn"]))
+        return Response({"results": results})
+
     @action(detail=False, methods=["post"], url_path="import", permission_classes=[IsAdminUser])
     def import_book(self, request):
         """Librarians only: add a book from the form that lookup filled in. The author is found by name or created."""
