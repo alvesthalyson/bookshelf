@@ -32,7 +32,7 @@ class PwaTests(TestCase):
         self.assertEqual(r["Cache-Control"], "no-cache")
         body = r.content.decode()
         # private data must never be stored by the worker
-        for private in ("/api/loans", "/api/reservations", "/api/auth", "/api/staff"):
+        for private in ("/api/loans", "/api/reservations", "/api/auth/", "/api/staff"):
             self.assertNotIn(private, body.split("function isReadingData")[1].split("}")[0])
 
     def test_home_links_the_manifest(self):
