@@ -12,8 +12,10 @@ from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
+from django.db import transaction
+
 from .filters import NullsLastOrderingFilter
-from . import services
+from . import openlibrary, services
 from .models import Author, Book, Favorite, Loan, Reservation, Review
 from .permissions import IsStaffOrReadOnly, ReadOrCreateForAnyone
 from .serializers import (
@@ -79,6 +81,61 @@ class BookViewSet(viewsets.ModelViewSet):
         if self.request.query_params.get("favorites") == "true":
             qs = qs.filter(fav=True)
         return qs
+
+    @staticmethod
+    def _isbn_error(exc):
+        return Response({"detail": str(exc), "code": exc.code}, status=exc.status_code)
+
+    @staticmethod
+    def _isbn_taken(isbn13):
+        forms = {isbn13, openlibrary.isbn10_of(isbn13)} - {None}
+        return Book.objects.filter(isbn__in=forms).first()
+
+    @action(detail=False, methods=["get"], url_path="lookup", permission_classes=[IsAdminUser])
+    def lookup(self, request):
+        """Librarians only: what Open Library knows about ?isbn=..., to check before adding the book."""
+        try:
+            isbn = openlibrary.normalize_isbn(request.query_params.get("isbn"))
+            if self._isbn_taken(isbn):
+                return Response({"detail": "This ISBN is already on the shelf.", "code": "isbn_exists"}, status=409)
+            return Response(openlibrary.lookup(isbn))
+        except openlibrary.IsbnError as exc:
+            return self._isbn_error(exc)
+
+    @action(detail=False, methods=["post"], url_path="import", permission_classes=[IsAdminUser])
+    def import_book(self, request):
+        """Librarians only: add a book from the form that lookup filled in. The author is found by name or created."""
+        data = request.data
+        try:
+            isbn = openlibrary.normalize_isbn(data.get("isbn"))
+        except openlibrary.IsbnError as exc:
+            return self._isbn_error(exc)
+        if self._isbn_taken(isbn):
+            return Response({"detail": "This ISBN is already on the shelf.", "code": "isbn_exists"}, status=409)
+        cover = (data.get("cover_url") or "").strip()
+        if cover and not cover.startswith(openlibrary.COVER_HOST):  # only covers from Open Library, never other addresses
+            return Response({"detail": "The cover must come from Open Library.", "code": "cover_url_invalid"}, status=400)
+        name = (data.get("author_name") or "").strip()
+        if not name:
+            return Response(
+                {"detail": "Check the form and try again.", "code": "validation_error", "field_errors": {"author_name": ["This field is required."]}},
+                status=400,
+            )
+        with transaction.atomic():
+            author = Author.objects.filter(name__iexact=name).first() or Author.objects.create(name=name)
+            serializer = self.get_serializer(data={
+                "title": (data.get("title") or "").strip(), "author": author.id, "isbn": isbn,
+                "published_year": data.get("published_year"), "pages": data.get("pages") or None,
+                "genre": (data.get("genre") or "").strip(), "cover_url": cover,
+            })
+            if not serializer.is_valid():
+                transaction.set_rollback(True)  # do not keep an author created for a book that was refused
+                return Response(
+                    {"detail": "Check the form and try again.", "code": "validation_error", "field_errors": serializer.errors},
+                    status=400,
+                )
+            serializer.save()
+        return Response(serializer.data, status=201)
 
     @action(detail=True, methods=["post", "delete"], permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):

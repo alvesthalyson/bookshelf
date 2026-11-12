@@ -241,7 +241,7 @@
         .field { display: flex; flex-direction: column; gap: 4px; }
         .field span { font-size: 0.85rem; color: var(--muted); }
         .field.grow { flex: 1 1 240px; }
-        input[type="search"], input[type="text"], input[type="password"], select, textarea {
+        input[type="search"], input[type="text"], input[type="password"], input[type="number"], select, textarea {
             width: 100%;
             background: var(--surface);
             border: 1px solid var(--line);
@@ -547,6 +547,14 @@
         .chart-table th, .chart-table td { text-align: left; padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); font-weight: 400; font-variant-numeric: tabular-nums; }
         .bar.static { cursor: default; }
         .bar.static:hover { border-color: transparent; }
+        .isbn-box { margin: 14px 0 4px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; }
+        .isbn-box summary { cursor: pointer; font-weight: 700; }
+        .isbn-form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+        .isbn-form .row { display: flex; gap: 8px; }
+        .isbn-form .row input { flex: 1; min-width: 0; }
+        .isbn-preview { display: flex; flex-direction: column; gap: 10px; }
+        .isbn-preview .isbn-cover img { width: 84px; border-radius: 4px; display: block; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+        .isbn-small { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .fav-row { padding: 12px 0 0; }
         #dFav[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
         .fav-mark {
@@ -770,6 +778,27 @@
                 <button class="btn ghost" id="stClose" type="button" data-i18n="close">Close</button>
             </div>
             <div class="msg" id="stMsg" role="status"></div>
+            <details class="isbn-box" id="isbnBox">
+                <summary data-i18n="isbn_title">Add a book by ISBN</summary>
+                <form class="isbn-form" id="isbnForm" novalidate autocomplete="off">
+                    <div class="row">
+                        <input type="text" id="isbnIn" inputmode="numeric" placeholder="978-4-10-101013-7" aria-label="ISBN" spellcheck="false">
+                        <button class="btn" id="isbnGo" type="submit" data-i18n="isbn_lookup">Look up</button>
+                    </div>
+                    <div class="msg" id="isbnMsg" role="status"></div>
+                    <div class="isbn-preview" id="isbnPreview" hidden>
+                        <div class="isbn-cover" id="isbnCover"></div>
+                        <label class="field"><span data-i18n="f_title">Title</span><input type="text" id="ipTitle" maxlength="200"></label>
+                        <label class="field"><span data-i18n="f_author_name">Author</span><input type="text" id="ipAuthor" maxlength="120"></label>
+                        <div class="isbn-small">
+                            <label class="field"><span data-i18n="f_year">Year</span><input type="number" id="ipYear" min="1" max="2100"></label>
+                            <label class="field"><span data-i18n="f_pages">Pages</span><input type="number" id="ipPages" min="1"></label>
+                        </div>
+                        <label class="field"><span data-i18n="f_genre">Genre</span><input type="text" id="ipGenre" maxlength="60"></label>
+                        <div><button class="btn" id="isbnAdd" type="button" data-i18n="isbn_add">Add to the shelf</button></div>
+                    </div>
+                </form>
+            </details>
             <dl class="staff-totals" id="stTotals"></dl>
             <h3 data-i18n="staff_weeks">Loans per week</h3>
             <figure class="chart" id="stWeeks"></figure>
@@ -922,7 +951,14 @@
                 paid_ok: 'Payment recorded.', return_ok: 'Book returned.', remove_ok: 'Removed from the line.', staff_fail: 'Could not load the librarian desk.',
                 loans_count_one: '{n} loan', loans_count_many: '{n} loans',
                 staff_weeks: 'Loans per week', staff_genres: 'Loans by genre', chart_week_aria: 'Loans per week over the last 8 weeks: {total} in total, {max} in the busiest week.',
-                chart_table: 'Show as table', col_week: 'Week of', col_loans: 'Loans', chart_empty: 'No loans in the last 8 weeks.', genre_empty: 'No loans with a genre yet.', line_ready: 'ready until {date}', line_waiting: 'waiting',
+                chart_table: 'Show as table', col_week: 'Week of', col_loans: 'Loans', chart_empty: 'No loans in the last 8 weeks.', genre_empty: 'No loans with a genre yet.',
+                isbn_title: 'Add a book by ISBN', isbn_lookup: 'Look up', isbn_looking: 'Looking it up', isbn_need: 'Enter an ISBN (10 or 13 digits).',
+                isbn_found: 'Found it. Check the details, fix anything that is wrong, then add the book.', isbn_add: 'Add to the shelf', isbn_adding: 'Adding the book',
+                isbn_added: '"{title}" was added to the shelf.', isbn_missing: 'The title, the author and the year are needed.',
+                f_title: 'Title', f_author_name: 'Author', f_year: 'Year', f_pages: 'Pages', f_genre: 'Genre',
+                err_isbn_invalid: 'This is not a valid ISBN. Check the digits.', err_isbn_not_found: 'Open Library has no book with this ISBN. Check it, or add the book in the admin.',
+                err_isbn_exists: 'This ISBN is already on the shelf.', err_lookup_unavailable: 'Could not reach Open Library. Try again in a moment.',
+                err_cover_url_invalid: 'The cover must come from Open Library.', line_ready: 'ready until {date}', line_waiting: 'waiting',
                 reviews: 'Reviews', write_review: 'Write a review', your_name: 'Your name', your_rating: 'Your rating',
                 comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
                 username: 'Username', password: 'Password',
@@ -1029,7 +1065,14 @@
                 paid_ok: '支払いを記録しました。', return_ok: '返却しました。', remove_ok: '順番待ちから外しました。', staff_fail: '司書デスクを読み込めませんでした。',
                 loans_count_one: '貸出{n}回', loans_count_many: '貸出{n}回',
                 staff_weeks: '週ごとの貸出数', staff_genres: 'ジャンル別の貸出数', chart_week_aria: '直近8週間の週ごとの貸出数：合計{total}回、最も多い週は{max}回。',
-                chart_table: '表で見る', col_week: '週の開始日', col_loans: '貸出数', chart_empty: '直近8週間の貸出はありません。', genre_empty: 'ジャンル付きの貸出はまだありません。', line_ready: '{date}まで取り置き', line_waiting: '順番待ち',
+                chart_table: '表で見る', col_week: '週の開始日', col_loans: '貸出数', chart_empty: '直近8週間の貸出はありません。', genre_empty: 'ジャンル付きの貸出はまだありません。',
+                isbn_title: 'ISBNで本を追加', isbn_lookup: '検索', isbn_looking: '検索中', isbn_need: 'ISBN（10桁または13桁）を入力してください。',
+                isbn_found: '見つかりました。内容を確認し、違うところは直してから追加してください。', isbn_add: '棚に追加', isbn_adding: '追加中',
+                isbn_added: '「{title}」を棚に追加しました。', isbn_missing: 'タイトル、著者、刊行年が必要です。',
+                f_title: 'タイトル', f_author_name: '著者', f_year: '刊行年', f_pages: 'ページ数', f_genre: 'ジャンル',
+                err_isbn_invalid: 'ISBNが正しくありません。数字を確認してください。', err_isbn_not_found: 'このISBNの本はOpen Libraryにありません。ISBNを確認するか、管理画面から追加してください。',
+                err_isbn_exists: 'このISBNはすでに棚にあります。', err_lookup_unavailable: 'Open Libraryに接続できませんでした。しばらくしてからもう一度お試しください。',
+                err_cover_url_invalid: '表紙はOpen Libraryのものだけ使えます。', line_ready: '{date}まで取り置き', line_waiting: '順番待ち',
                 reviews: 'レビュー', write_review: 'レビューを書く', your_name: 'お名前', your_rating: '評価',
                 comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
                 username: 'ユーザー名', password: 'パスワード',
@@ -1136,7 +1179,14 @@
                 paid_ok: 'Pagamento registrado.', return_ok: 'Livro devolvido.', remove_ok: 'Removido da fila.', staff_fail: 'Não foi possível carregar a mesa do bibliotecário.',
                 loans_count_one: '{n} empréstimo', loans_count_many: '{n} empréstimos',
                 staff_weeks: 'Empréstimos por semana', staff_genres: 'Empréstimos por gênero', chart_week_aria: 'Empréstimos por semana nas últimas 8 semanas: {total} no total, {max} na semana mais movimentada.',
-                chart_table: 'Ver como tabela', col_week: 'Semana de', col_loans: 'Empréstimos', chart_empty: 'Nenhum empréstimo nas últimas 8 semanas.', genre_empty: 'Ainda não há empréstimos com gênero.', line_ready: 'pronto até {date}', line_waiting: 'aguardando',
+                chart_table: 'Ver como tabela', col_week: 'Semana de', col_loans: 'Empréstimos', chart_empty: 'Nenhum empréstimo nas últimas 8 semanas.', genre_empty: 'Ainda não há empréstimos com gênero.',
+                isbn_title: 'Adicionar livro por ISBN', isbn_lookup: 'Buscar', isbn_looking: 'Buscando', isbn_need: 'Digite um ISBN (10 ou 13 dígitos).',
+                isbn_found: 'Encontrado. Confira os dados, corrija o que estiver errado e adicione o livro.', isbn_add: 'Adicionar à estante', isbn_adding: 'Adicionando o livro',
+                isbn_added: '"{title}" foi adicionado à estante.', isbn_missing: 'São necessários o título, o autor e o ano.',
+                f_title: 'Título', f_author_name: 'Autor', f_year: 'Ano', f_pages: 'Páginas', f_genre: 'Gênero',
+                err_isbn_invalid: 'Este ISBN não é válido. Confira os dígitos.', err_isbn_not_found: 'A Open Library não tem livro com este ISBN. Confira o número ou cadastre o livro na administração.',
+                err_isbn_exists: 'Este ISBN já está na estante.', err_lookup_unavailable: 'Não foi possível acessar a Open Library. Tente de novo em instantes.',
+                err_cover_url_invalid: 'A capa precisa vir da Open Library.', line_ready: 'pronto até {date}', line_waiting: 'aguardando',
                 reviews: 'Resenhas', write_review: 'Escrever uma resenha', your_name: 'Seu nome', your_rating: 'Sua nota',
                 comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
                 username: 'Usuário', password: 'Senha',
@@ -2314,6 +2364,73 @@
             }));
         }
 
+        /* ---------- add a book by ISBN ---------- */
+
+        var isbnFound = null; // what the last look-up returned (the ISBN as 13 digits and the cover address)
+
+        function isbnNote(text, kind) {
+            $('isbnMsg').textContent = text || '';
+            $('isbnMsg').className = 'msg' + (kind ? ' ' + kind : '');
+        }
+
+        function apiProblem(err) {
+            var d = err.data || {};
+            if (d.field_errors) {
+                return Object.keys(d.field_errors).map(function (k) { return d.field_errors[k].join(' '); }).join(' ');
+            }
+            return (d.code && errorText(d.code)) || d.detail || t('generic_fail');
+        }
+
+        function resetIsbnForm() {
+            isbnFound = null;
+            $('isbnPreview').hidden = true;
+            ['isbnIn', 'ipTitle', 'ipAuthor', 'ipYear', 'ipPages', 'ipGenre'].forEach(function (id) { $(id).value = ''; });
+            $('isbnCover').replaceChildren();
+        }
+
+        $('isbnForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            var value = $('isbnIn').value.trim();
+            if (!value) { isbnNote(t('isbn_need'), 'error'); return; }
+            isbnNote(t('isbn_looking'), '');
+            $('isbnPreview').hidden = true;
+            $('isbnGo').disabled = true;
+            api('/api/books/lookup/?isbn=' + encodeURIComponent(value)).then(function (found) {
+                isbnFound = found;
+                $('ipTitle').value = found.title;
+                $('ipAuthor').value = found.author_name;
+                $('ipYear').value = found.published_year || '';
+                $('ipPages').value = found.pages || '';
+                $('ipGenre').value = found.genre;
+                $('isbnCover').replaceChildren.apply($('isbnCover'), found.cover_url ? [el('img', { src: found.cover_url, alt: '' })] : []);
+                $('isbnPreview').hidden = false;
+                isbnNote(t('isbn_found'), 'ok');
+            }).catch(function (err) {
+                isbnNote(apiProblem(err), 'error');
+            }).then(function () { $('isbnGo').disabled = false; });
+        });
+
+        $('isbnAdd').addEventListener('click', function () {
+            if (!isbnFound) return;
+            var title = $('ipTitle').value.trim(), author = $('ipAuthor').value.trim(), year = Number($('ipYear').value);
+            if (!title || !author || !year) { isbnNote(t('isbn_missing'), 'error'); return; }
+            isbnNote(t('isbn_adding'), '');
+            $('isbnAdd').disabled = true;
+            send('POST', '/api/books/import/', {
+                isbn: isbnFound.isbn, title: title, author_name: author, published_year: year,
+                pages: Number($('ipPages').value) || null, genre: $('ipGenre').value.trim(), cover_url: isbnFound.cover_url
+            }).then(function (book) {
+                resetIsbnForm();
+                isbnNote(t('isbn_added', { title: book.title }), 'ok');
+                loadBooks();
+                loadStats();
+                loadAuthors();
+                return loadStaff();
+            }).catch(function (err) {
+                isbnNote(apiProblem(err), 'error');
+            }).then(function () { $('isbnAdd').disabled = false; });
+        });
+
         function loadStaff() {
             return api('/api/staff/overview/').then(function (d) { staffData = d; renderStaff(); })
                 .catch(function () { stNote(t('staff_fail'), 'error'); });
@@ -2482,7 +2599,7 @@
                 loadReviews(current.id);
             }
             if (loansDlg.open) { renderLoansPanel(); loadLoanHistory(); }
-            if (staffDlg.open) { stNote('', ''); renderStaff(); }
+            if (staffDlg.open) { stNote('', ''); renderStaff(); isbnNote('', ''); }
         }
         $('langSel').addEventListener('change', function (e) { setLang(e.target.value); });
 
