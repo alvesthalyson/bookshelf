@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Bookshelf">
+  <rect width="512" height="512" rx="112" fill="#2b3a8c"/>
+  <g transform="translate(0 6)">
+    <rect x="104" y="150" width="62" height="224" rx="8" fill="#e8b04b"/>
+    <rect x="178" y="118" width="62" height="256" rx="8" fill="#f7f8fa"/>
+    <rect x="252" y="162" width="62" height="212" rx="8" fill="#9db0ff"/>
+    <g transform="rotate(14 372 372)"><rect x="330" y="128" width="62" height="246" rx="8" fill="#f7f8fa"/></g>
+    <rect x="80" y="382" width="352" height="22" rx="11" fill="#f7f8fa"/>
+  </g>
+</svg>

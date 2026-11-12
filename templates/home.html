@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Bookshelf</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b0d13" media="(prefers-color-scheme: dark)">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Bookshelf">
     {% verbatim %}
     <script>
         /* Set the theme before the first paint so the page never flashes the wrong colors.
@@ -523,6 +530,7 @@
         .top-list { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; }
         .line-readers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
         .loan-list .line-readers li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: 0; flex-direction: row; }
+        .offline-bar { position: sticky; top: 0; z-index: 50; padding: 8px 16px; text-align: center; font-size: 0.9rem; font-weight: 600; background: var(--ink); color: var(--bg); }
         .fav-row { padding: 12px 0 0; }
         #dFav[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
         .fav-mark {
@@ -546,6 +554,7 @@
     </style>
 </head>
 <body>
+    <div class="offline-bar" id="offlineBar" role="status" hidden data-i18n="offline_bar">You are offline.</div>
     <div class="wrap">
         <header class="top">
             <a class="brand" href="/">Bookshelf</a>
@@ -638,6 +647,7 @@
             <a href="/api/" data-i18n="footer_api">Browse the API</a>
             <a href="/admin/" data-i18n="footer_admin">Admin</a>
             <a href="https://openlibrary.org" target="_blank" rel="noopener" data-i18n="footer_covers">Covers from Open Library</a>
+            <button class="link-btn" id="installBtn" type="button" hidden data-i18n="install_app">Install the app</button>
         </footer>
     </div>
 
@@ -875,6 +885,7 @@
                 prev_book: 'Previous book', next_book: 'Next book', close: 'Close', lang_label: 'Language',
                 fav_only: 'Wish list only', fav_save: 'Save to wish list', fav_saved: 'Saved to wish list', speak_saved: 'in your wish list',
                 fav_fail: 'Could not update your wish list. Try again.',
+                offline_bar: 'You are offline. Showing saved books. Borrowing, reserving and reviews need a connection.', install_app: 'Install the app',
                 related_title: 'You may also like', rel_readers: 'Readers also borrowed', rel_author: 'Same author', rel_genre: 'Same genre',
                 fines_owed: 'You owe {amount} in late fees. Ask a librarian to settle it, then you can borrow again.',
                 fines_accruing: 'Your late books are adding {amount} in late fees so far. Return them to stop the fee.',
@@ -979,6 +990,7 @@
                 prev_book: '前の本', next_book: '次の本', close: '閉じる', lang_label: '言語',
                 fav_only: 'お気に入りのみ', fav_save: 'お気に入りに追加', fav_saved: 'お気に入りに追加済み', speak_saved: 'お気に入りに登録済み',
                 fav_fail: 'お気に入りを更新できませんでした。もう一度お試しください。',
+                offline_bar: 'オフラインです。保存済みの本を表示しています。貸出・予約・レビューには接続が必要です。', install_app: 'アプリをインストール',
                 related_title: 'こちらもおすすめ', rel_readers: 'この本を借りた人はこちらも', rel_author: '同じ著者', rel_genre: '同じジャンル',
                 fines_owed: '延滞料{amount}をお支払いいただく必要があります。司書に支払いを済ませると、また借りられます。',
                 fines_accruing: '延滞中の本の延滞料が、現在{amount}になっています。返却すると増えなくなります。',
@@ -1083,6 +1095,7 @@
                 prev_book: 'Livro anterior', next_book: 'Próximo livro', close: 'Fechar', lang_label: 'Idioma',
                 fav_only: 'Só favoritos', fav_save: 'Salvar nos favoritos', fav_saved: 'Nos favoritos', speak_saved: 'nos seus favoritos',
                 fav_fail: 'Não foi possível atualizar seus favoritos. Tente de novo.',
+                offline_bar: 'Você está offline. Mostrando os livros salvos. Pegar, reservar e avaliar precisam de conexão.', install_app: 'Instalar o app',
                 related_title: 'Você também pode gostar', rel_readers: 'Quem leu este também pegou', rel_author: 'Mesmo autor', rel_genre: 'Mesmo gênero',
                 fines_owed: 'Você deve {amount} de multa por atraso. Peça a um bibliotecário para quitar e depois poderá pegar livros de novo.',
                 fines_accruing: 'Seus livros atrasados já somam {amount} de multa. Devolva-os para parar a cobrança.',
@@ -1788,6 +1801,7 @@
             rules = Object.assign({}, rules, session.rules);
             fines = session.fines || { unpaid: 0, accruing: 0 };
             user = session.authenticated ? { username: session.username, is_staff: session.is_staff } : null;
+            forgetStoredData(user ? user.username : '');
             renderAccount();
             if (user) return Promise.all([loadMyLoans(), loadMyReservations()]);
             myLoans = [];
@@ -2373,6 +2387,50 @@
             if (staffDlg.open) { stNote('', ''); renderStaff(); }
         }
         $('langSel').addEventListener('change', function (e) { setLang(e.target.value); });
+
+        /* ---------- installable app and offline ---------- */
+
+        // The service worker keeps the shelf readable without a connection and lets the site be installed.
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js').catch(function () {});
+            });
+        }
+
+        // Stored book lists say which books are saved by the reader, so forget them when another person uses the browser.
+        function forgetStoredData(name) {
+            try {
+                if (localStorage.getItem('bookshelf-user') === name) return;
+                localStorage.setItem('bookshelf-user', name);
+            } catch (e) { return; }
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'clear-data' });
+            }
+        }
+
+        function showConnection() { $('offlineBar').hidden = navigator.onLine; }
+        window.addEventListener('offline', showConnection);
+        window.addEventListener('online', function () {
+            showConnection();
+            loadSession();
+            loadBooks();
+            loadStats();
+        });
+        showConnection();
+
+        var installEvent = null;
+        window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            installEvent = e;
+            $('installBtn').hidden = false;
+        });
+        window.addEventListener('appinstalled', function () { installEvent = null; $('installBtn').hidden = true; });
+        $('installBtn').addEventListener('click', function () {
+            if (!installEvent) return;
+            installEvent.prompt();
+            installEvent = null;
+            $('installBtn').hidden = true;
+        });
 
         /* ---------- start ---------- */
         applyStaticI18n();
