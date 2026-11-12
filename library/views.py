@@ -1,4 +1,6 @@
 from django.shortcuts import render  # <-- IMPORT MOVIDO PARA O TOPO
+from datetime import timedelta
+
 from django.utils import timezone
 from django.db.models import Avg, BooleanField, Count, Exists, F, IntegerField, OuterRef, Subquery, Value
 from django.db.models.functions import Coalesce
@@ -260,6 +262,20 @@ def staff_overview(request):
     )
     active_count = Loan.objects.filter(returned_at__isnull=True).count()
     unpaid_loans = list(unpaid)
+
+    # Loans started in each of the last 8 weeks (weeks start on Monday, in the library's time zone).
+    today = timezone.localdate()
+    first_week = today - timedelta(days=today.weekday() + 7 * 7)
+    per_week = {first_week + timedelta(weeks=i): 0 for i in range(8)}
+    for started in Loan.objects.filter(borrowed_at__date__gte=first_week).values_list("borrowed_at", flat=True):
+        day = timezone.localtime(started).date()
+        per_week[day - timedelta(days=day.weekday())] += 1
+    by_genre = (
+        Loan.objects.exclude(book__genre="")
+        .values(genre=F("book__genre"))
+        .annotate(loans=Count("id"))
+        .order_by("-loans", "genre")[:6]
+    )
     return Response({
         "totals": {
             "active_loans": active_count,
@@ -270,6 +286,10 @@ def staff_overview(request):
         "late": loan_rows(late, many=True).data,
         "unpaid": loan_rows(unpaid_loans, many=True).data,
         "lines": list(lines.values()),
+        "charts": {
+            "loans_per_week": [{"week_start": d.isoformat(), "loans": n} for d, n in per_week.items()],
+            "loans_by_genre": list(by_genre),
+        },
         "top_borrowed": [
             {"id": b.id, "title": b.title, "author_name": b.author.name, "loan_count": b.loan_count} for b in top
         ],

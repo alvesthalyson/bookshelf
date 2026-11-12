@@ -171,3 +171,34 @@ class StaffOverviewTests(TestCase):
         res.refresh_from_db()
         self.assertEqual(res.status, Reservation.READY)  # the line moved
         self.assertEqual(self.staff.post(f"/api/reservations/{res.id}/cancel/").status_code, 200)
+
+
+class StaffChartsTests(TestCase):
+    def setUp(self):
+        self.books = make_books()
+        self.ana = User.objects.create_user("ana", password="s3cret-pass-1")
+        self.lib = User.objects.create_user("lib", password="s3cret-pass-4", is_staff=True)
+        self.staff = APIClient(); self.staff.login(username="lib", password="s3cret-pass-4")
+
+    def test_eight_weeks_oldest_first_with_empty_weeks_as_zero(self):
+        for i, days_ago in enumerate([0, 1, 20]):
+            loan = Loan.objects.create(user=self.ana, book=self.books[i], due_at=timezone.now() + timedelta(days=14))
+            Loan.objects.filter(pk=loan.pk).update(borrowed_at=timezone.now() - timedelta(days=days_ago))
+        weeks = self.staff.get("/api/staff/overview/").json()["charts"]["loans_per_week"]
+        self.assertEqual(len(weeks), 8)
+        starts = [w["week_start"] for w in weeks]
+        self.assertEqual(starts, sorted(starts))
+        self.assertEqual(sum(w["loans"] for w in weeks), 3)
+        self.assertGreaterEqual(weeks[-1]["loans"], 1)  # today's loan is in the last week
+        self.assertIn(0, [w["loans"] for w in weeks])
+
+    def test_old_loans_are_left_out_and_genres_are_counted(self):
+        for book, genre in zip(self.books[:3], ["Novel", "Novel", "Poetry"]):
+            book.genre = genre
+            book.save()
+            Loan.objects.create(user=self.ana, book=book, due_at=timezone.now() + timedelta(days=14))
+        ancient = Loan.objects.create(user=self.ana, book=self.books[3], due_at=timezone.now())
+        Loan.objects.filter(pk=ancient.pk).update(borrowed_at=timezone.now() - timedelta(days=400))
+        charts = self.staff.get("/api/staff/overview/").json()["charts"]
+        self.assertEqual(sum(w["loans"] for w in charts["loans_per_week"]), 3)
+        self.assertEqual(charts["loans_by_genre"], [{"genre": "Novel", "loans": 2}, {"genre": "Poetry", "loans": 1}])

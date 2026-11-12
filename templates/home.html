@@ -531,6 +531,22 @@
         .line-readers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
         .loan-list .line-readers li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: 0; flex-direction: row; }
         .offline-bar { position: sticky; top: 0; z-index: 50; padding: 8px 16px; text-align: center; font-size: 0.9rem; font-weight: 600; background: var(--ink); color: var(--bg); }
+        .chart { margin: 0; }
+        .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+        .chart .base { stroke: var(--line); stroke-width: 1; }
+        .chart .mark { fill: var(--accent); opacity: 0.85; transition: opacity 0.15s; }
+        .chart .col:hover .mark, .chart .col:focus .mark { opacity: 1; }
+        .chart .col { outline: none; }
+        .chart .col:focus-visible .hit { stroke: var(--accent); stroke-width: 1.5; }
+        .chart .hit { fill: transparent; }
+        .chart text { font-family: var(--body); font-size: 10.5px; fill: var(--muted); text-anchor: middle; }
+        .chart text.value { fill: var(--ink); font-weight: 700; font-size: 11.5px; }
+        .chart-table { margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+        .chart-table summary { cursor: pointer; }
+        .chart-table table { border-collapse: collapse; margin-top: 6px; width: 100%; }
+        .chart-table th, .chart-table td { text-align: left; padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); font-weight: 400; font-variant-numeric: tabular-nums; }
+        .bar.static { cursor: default; }
+        .bar.static:hover { border-color: transparent; }
         .fav-row { padding: 12px 0 0; }
         #dFav[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
         .fav-mark {
@@ -755,6 +771,10 @@
             </div>
             <div class="msg" id="stMsg" role="status"></div>
             <dl class="staff-totals" id="stTotals"></dl>
+            <h3 data-i18n="staff_weeks">Loans per week</h3>
+            <figure class="chart" id="stWeeks"></figure>
+            <h3 data-i18n="staff_genres">Loans by genre</h3>
+            <div class="bars" id="stGenres"></div>
             <h3 data-i18n="staff_late">Late books</h3>
             <ul class="loan-list" id="stLate"></ul>
             <h3 data-i18n="staff_unpaid">Unpaid late fees</h3>
@@ -900,7 +920,9 @@
                 staff_empty_late: 'No late books.', staff_empty_unpaid: 'No unpaid fees.', staff_empty_lines: 'No one is waiting for a book.', staff_empty_top: 'No loans yet.',
                 due_by: '{name}, due {date}', returned_by: '{name}, returned {date}', mark_paid: 'Mark as paid', staff_return: 'Return', staff_remove: 'Remove',
                 paid_ok: 'Payment recorded.', return_ok: 'Book returned.', remove_ok: 'Removed from the line.', staff_fail: 'Could not load the librarian desk.',
-                loans_count_one: '{n} loan', loans_count_many: '{n} loans', line_ready: 'ready until {date}', line_waiting: 'waiting',
+                loans_count_one: '{n} loan', loans_count_many: '{n} loans',
+                staff_weeks: 'Loans per week', staff_genres: 'Loans by genre', chart_week_aria: 'Loans per week over the last 8 weeks: {total} in total, {max} in the busiest week.',
+                chart_table: 'Show as table', col_week: 'Week of', col_loans: 'Loans', chart_empty: 'No loans in the last 8 weeks.', genre_empty: 'No loans with a genre yet.', line_ready: 'ready until {date}', line_waiting: 'waiting',
                 reviews: 'Reviews', write_review: 'Write a review', your_name: 'Your name', your_rating: 'Your rating',
                 comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
                 username: 'Username', password: 'Password',
@@ -1005,7 +1027,9 @@
                 staff_empty_late: '延滞中の本はありません。', staff_empty_unpaid: '未払いの延滞料はありません。', staff_empty_lines: '順番待ちをしている人はいません。', staff_empty_top: 'まだ貸出がありません。',
                 due_by: '{name}さん・返却期限 {date}', returned_by: '{name}さん・{date}に返却', mark_paid: '支払い済みにする', staff_return: '返却', staff_remove: '外す',
                 paid_ok: '支払いを記録しました。', return_ok: '返却しました。', remove_ok: '順番待ちから外しました。', staff_fail: '司書デスクを読み込めませんでした。',
-                loans_count_one: '貸出{n}回', loans_count_many: '貸出{n}回', line_ready: '{date}まで取り置き', line_waiting: '順番待ち',
+                loans_count_one: '貸出{n}回', loans_count_many: '貸出{n}回',
+                staff_weeks: '週ごとの貸出数', staff_genres: 'ジャンル別の貸出数', chart_week_aria: '直近8週間の週ごとの貸出数：合計{total}回、最も多い週は{max}回。',
+                chart_table: '表で見る', col_week: '週の開始日', col_loans: '貸出数', chart_empty: '直近8週間の貸出はありません。', genre_empty: 'ジャンル付きの貸出はまだありません。', line_ready: '{date}まで取り置き', line_waiting: '順番待ち',
                 reviews: 'レビュー', write_review: 'レビューを書く', your_name: 'お名前', your_rating: '評価',
                 comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
                 username: 'ユーザー名', password: 'パスワード',
@@ -1110,7 +1134,9 @@
                 staff_empty_late: 'Nenhum livro atrasado.', staff_empty_unpaid: 'Nenhuma multa em aberto.', staff_empty_lines: 'Ninguém está esperando por um livro.', staff_empty_top: 'Ainda não há empréstimos.',
                 due_by: '{name}, devolver até {date}', returned_by: '{name}, devolveu em {date}', mark_paid: 'Marcar como paga', staff_return: 'Devolver', staff_remove: 'Remover',
                 paid_ok: 'Pagamento registrado.', return_ok: 'Livro devolvido.', remove_ok: 'Removido da fila.', staff_fail: 'Não foi possível carregar a mesa do bibliotecário.',
-                loans_count_one: '{n} empréstimo', loans_count_many: '{n} empréstimos', line_ready: 'pronto até {date}', line_waiting: 'aguardando',
+                loans_count_one: '{n} empréstimo', loans_count_many: '{n} empréstimos',
+                staff_weeks: 'Empréstimos por semana', staff_genres: 'Empréstimos por gênero', chart_week_aria: 'Empréstimos por semana nas últimas 8 semanas: {total} no total, {max} na semana mais movimentada.',
+                chart_table: 'Ver como tabela', col_week: 'Semana de', col_loans: 'Empréstimos', chart_empty: 'Nenhum empréstimo nas últimas 8 semanas.', genre_empty: 'Ainda não há empréstimos com gênero.', line_ready: 'pronto até {date}', line_waiting: 'aguardando',
                 reviews: 'Resenhas', write_review: 'Escrever uma resenha', your_name: 'Seu nome', your_rating: 'Sua nota',
                 comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
                 username: 'Usuário', password: 'Senha',
@@ -2177,6 +2203,8 @@
                 return el('div', null, el('dt', { text: t(c[0]) }), el('dd', { text: String(c[1]) }));
             }));
 
+            if (d.charts) { renderWeeks(d.charts.loans_per_week); renderGenres(d.charts.loans_by_genre); }
+
             var late = $('stLate');
             late.replaceChildren.apply(late, d.late.length ? d.late.map(function (loan) {
                 return el('li', null,
@@ -2214,6 +2242,76 @@
             top.replaceChildren.apply(top, d.top_borrowed.length ? d.top_borrowed.map(function (b) {
                 return el('li', { text: b.title + ' · ' + tn('loans_count', b.loan_count) });
             }) : stEmpty('staff_empty_top'));
+        }
+
+        var SVG = 'http://www.w3.org/2000/svg';
+        function svg(tag, attrs, kids) {
+            var node = document.createElementNS(SVG, tag);
+            Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+            (kids || []).forEach(function (kid) { node.append(kid); });
+            return node;
+        }
+
+        function localDay(isoDate) { // "2026-11-09" as a date in the reader's own time zone, not UTC
+            var p = isoDate.split('-');
+            return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+        }
+
+        // Loans per week: one series, so no legend; the title names it. The busiest and the latest week carry their number,
+        // every column has a tooltip and a keyboard focus stop, and the same numbers are available as a table.
+        function renderWeeks(weeks) {
+            var host = $('stWeeks');
+            var total = weeks.reduce(function (a, w) { return a + w.loans; }, 0);
+            if (!total) { host.replaceChildren(el('p', { class: 'muted', text: t('chart_empty') })); return; }
+            var W = 360, H = 168, padX = 8, top = 22, bottom = 26, ph = H - top - bottom;
+            var slot = (W - padX * 2) / weeks.length, bw = 26, r = 4;
+            var max = Math.max.apply(null, weeks.map(function (w) { return w.loans; }));
+            var busiest = weeks.map(function (w) { return w.loans; }).indexOf(max);
+            var kids = [svg('line', { class: 'base', x1: padX, x2: W - padX, y1: top + ph, y2: top + ph })];
+            weeks.forEach(function (w, i) {
+                var x = padX + slot * i + (slot - bw) / 2, h = Math.round(w.loans / max * ph), y = top + ph - h;
+                var label = localDay(w.week_start).toLocaleDateString(LOCALES[lang], { month: 'short', day: 'numeric' });
+                var tip = label + ': ' + tn('loans_count', w.loans);
+                var col = svg('g', { class: 'col', tabindex: '0', 'aria-label': tip }, [
+                    svg('title', {}, [document.createTextNode(tip)]),
+                    svg('rect', { class: 'hit', x: padX + slot * i, y: 0, width: slot, height: top + ph })]);
+                if (h > 0) {
+                    // the end of the bar that meets the data is rounded, the end on the baseline stays flat
+                    var rr = Math.min(r, h);
+                    col.append(svg('path', { class: 'mark', d: 'M' + x + ',' + (y + h) + 'V' + (y + rr) + 'Q' + x + ',' + y + ' ' + (x + rr) + ',' + y +
+                        'H' + (x + bw - rr) + 'Q' + (x + bw) + ',' + y + ' ' + (x + bw) + ',' + (y + rr) + 'V' + (y + h) + 'Z' }));
+                }
+                if (w.loans > 0 && (i === busiest || i === weeks.length - 1)) {
+                    col.append(svg('text', { class: 'value', x: x + bw / 2, y: y - 6 }, [document.createTextNode(String(w.loans))]));
+                }
+                // every second week is named so the dates never touch; the tooltip and the table have them all
+                if ((weeks.length - 1 - i) % 2 === 0) col.append(svg('text', { x: x + bw / 2, y: H - 8 }, [document.createTextNode(label)]));
+                kids.push(col);
+            });
+            var chart = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': t('chart_week_aria', { total: total, max: max }) }, kids);
+            var rows = weeks.map(function (w) {
+                return el('tr', null,
+                    el('td', { text: localDay(w.week_start).toLocaleDateString(LOCALES[lang], { year: 'numeric', month: 'short', day: 'numeric' }) }),
+                    el('td', { text: String(w.loans) }));
+            });
+            var table = el('details', { class: 'chart-table' },
+                el('summary', { text: t('chart_table') }),
+                el('table', null,
+                    el('thead', null, el('tr', null, el('th', { text: t('col_week') }), el('th', { text: t('col_loans') }))),
+                    el.apply(null, ['tbody', null].concat(rows))));
+            host.replaceChildren(chart, table);
+        }
+
+        function renderGenres(rows) {
+            var host = $('stGenres');
+            if (!rows.length) { host.replaceChildren(el('p', { class: 'muted', text: t('genre_empty') })); return; }
+            var max = Math.max.apply(null, rows.map(function (g) { return g.loans; }));
+            host.replaceChildren.apply(host, rows.map(function (g) {
+                return el('div', { class: 'bar static' },
+                    el('span', { class: 'b-name', text: g.genre }),
+                    el('span', { class: 'b-track' }, el('span', { class: 'b-fill', style: 'width:' + Math.round(g.loans / max * 100) + '%' })),
+                    el('span', { class: 'b-count', text: String(g.loans) }));
+            }));
         }
 
         function loadStaff() {
