@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="page-title">Reviews</h1>
+<p class="subtitle">See what the community is reading and saying.</p>
+
+<div class="review-list" id="reviews-list">
+    <p>Loading...</p>
+</div>
+
+<script>
+async function loadReviews() {
+    const response = await fetch('/api/reviews/');
+    const data = await response.json();
+    const reviews = data.results || data;
+
+    const list = document.getElementById('reviews-list');
+    list.innerHTML = reviews.map(review => `
+        <div class="card review-card">
+            <div class="review-header">
+                <h3>${review.book_title || 'Book #' + review.book}</h3>
+                <span class="stars">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</span>
+            </div>
+            <p class="muted">by <strong>${review.reviewer_name}</strong> on ${new Date(review.created_at).toLocaleDateString()}</p>
+            ${review.comment ? `<p>${review.comment}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+loadReviews();
+</script>
+{% endblock %}

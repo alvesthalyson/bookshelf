@@ -1,0 +1,47 @@
+{% extends 'base.html' %}  <!-- Se você tiver um base.html; senão, use o HTML completo -->
+{% load static %}
+{% block content %}
+<h1 class="page-title">Books</h1>
+<p class="subtitle">Search the collection, see what is in stock, and leave a review.</p>
+
+<div class="stats-bar" id="stats-bar">
+    <div>Books<strong id="total-books">-</strong></div>
+    <div>In stock<strong id="in-stock">-</strong></div>
+</div>
+
+<div class="grid" id="books-grid">
+    <p>Loading...</p>
+</div>
+
+<script>
+async function loadBooks() {
+    // Busca os livros da API
+    const response = await fetch('/api/books/');
+    const data = await response.json();
+    const books = data.results || data;  // Paginação do DRF usa .results
+
+    // Busca os stats para os contadores
+    const statsRes = await fetch('/api/stats/');
+    const stats = await statsRes.json();
+    document.getElementById('total-books').textContent = stats.books;
+    document.getElementById('in-stock').textContent = stats.in_stock;
+
+    // Renderiza os cards
+    const grid = document.getElementById('books-grid');
+    grid.innerHTML = books.map(book => `
+        <div class="card">
+            ${book.cover_url ? `<img src="${book.cover_url}" alt="${book.title}">` : ''}
+            <h3>${book.title}</h3>
+            <p class="author">${book.author_name || book.author}</p>
+            <span class="badge ${book.in_stock ? 'in' : 'out'}">
+                ${book.in_stock ? 'In Stock' : 'Checked Out'}
+            </span>
+            ${book.avg_rating ? `<p class="rating">★ ${book.avg_rating.toFixed(1)}</p>` : ''}
+            <a href="/books/${book.id}/" class="link">View Details →</a>
+        </div>
+    `).join('');
+}
+
+loadBooks();
+</script>
+{% endblock %}

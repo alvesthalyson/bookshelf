@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="page-title">Authors</h1>
+
+<div class="grid" id="authors-grid">
+    <p>Loading...</p>
+</div>
+
+<script>
+async function loadAuthors() {
+    const response = await fetch('/api/authors/');
+    const data = await response.json();
+    const authors = data.results || data;
+
+    const grid = document.getElementById('authors-grid');
+    grid.innerHTML = authors.map(author => `
+        <div class="card author-card">
+            <div class="avatar">${author.name.charAt(0)}</div>
+            <div>
+                <h3>${author.name}</h3>
+                <p class="muted">
+                    ${author.country || 'Unknown country'}
+                    ${author.birth_year ? `· Born ${author.birth_year}` : ''}
+                </p>
+                <span class="link">${author.books ? author.books.length : 0} books</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+loadAuthors();
+</script>
+{% endblock %}

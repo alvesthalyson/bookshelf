@@ -1,4 +1,4 @@
-from django.shortcuts import render  # <-- IMPORT MOVIDO PARA O TOPO
+from django.shortcuts import render
 from datetime import timedelta
 
 from django.utils import timezone
@@ -38,11 +38,9 @@ class BookViewSet(viewsets.ModelViewSet):
         Book.objects.select_related("author")
         .annotate(
             avg_rating=Avg("reviews__rating"),
-            # when the current loan ends, so the page can say "back on Nov 24"
             active_due=Subquery(
                 Loan.objects.filter(book=OuterRef("pk"), returned_at__isnull=True).values("due_at")[:1]
             ),
-            # readers in line for the book, and when the hold on it ends if it is being held
             queue=Coalesce(
                 Subquery(
                     Reservation.objects.filter(book=OuterRef("pk"), status__in=Reservation.ACTIVE)
@@ -77,7 +75,6 @@ class BookViewSet(viewsets.ModelViewSet):
             qs = qs.annotate(fav=Exists(Favorite.objects.filter(book=OuterRef("pk"), user=user)))
         else:
             qs = qs.annotate(fav=Value(False, output_field=BooleanField()))
-        # ?favorites=true shows only the books the reader saved (nothing for visitors)
         if self.request.query_params.get("favorites") == "true":
             qs = qs.filter(fav=True)
         return qs
@@ -93,7 +90,6 @@ class BookViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="lookup", permission_classes=[IsAdminUser])
     def lookup(self, request):
-        """Librarians only: what Open Library knows about ?isbn=..., to check before adding the book."""
         try:
             isbn = openlibrary.normalize_isbn(request.query_params.get("isbn"))
             if self._isbn_taken(isbn):
@@ -104,7 +100,6 @@ class BookViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="search-online", permission_classes=[IsAdminUser])
     def search_online(self, request):
-        """Librarians only: look books up in Open Library by title or author (?q=...). Books already on the shelf are marked."""
         try:
             results = openlibrary.search(request.query_params.get("q"))
         except openlibrary.IsbnError as exc:
@@ -115,7 +110,6 @@ class BookViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="import", permission_classes=[IsAdminUser])
     def import_book(self, request):
-        """Librarians only: add a book from the form that lookup filled in. The author is found by name or created."""
         data = request.data
         try:
             isbn = openlibrary.normalize_isbn(data.get("isbn"))
@@ -124,7 +118,7 @@ class BookViewSet(viewsets.ModelViewSet):
         if self._isbn_taken(isbn):
             return Response({"detail": "This ISBN is already on the shelf.", "code": "isbn_exists"}, status=409)
         cover = (data.get("cover_url") or "").strip()
-        if cover and not cover.startswith(openlibrary.COVER_HOST):  # only covers from Open Library, never other addresses
+        if cover and not cover.startswith(openlibrary.COVER_HOST):
             return Response({"detail": "The cover must come from Open Library.", "code": "cover_url_invalid"}, status=400)
         name = (data.get("author_name") or "").strip()
         if not name:
@@ -140,7 +134,7 @@ class BookViewSet(viewsets.ModelViewSet):
                 "genre": (data.get("genre") or "").strip(), "cover_url": cover,
             })
             if not serializer.is_valid():
-                transaction.set_rollback(True)  # do not keep an author created for a book that was refused
+                transaction.set_rollback(True)
                 return Response(
                     {"detail": "Check the form and try again.", "code": "validation_error", "field_errors": serializer.errors},
                     status=400,
@@ -150,14 +144,12 @@ class BookViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post", "delete"], permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):
-        """POST saves the book to the wish list, DELETE removes it. Both can be repeated safely."""
         book = self.get_object()
         saved = services.set_favorite(request.user, book, request.method == "POST")
         return Response({"favorited": saved})
 
     @action(detail=True, methods=["get"])
     def related(self, request, pk=None):
-        """Books to read next: what other readers borrowed too, then the same author and genre."""
         book = self.get_object()
         items = []
         for other, reason in services.recommendations(book):
@@ -165,7 +157,6 @@ class BookViewSet(viewsets.ModelViewSet):
             items.append(other)
         return Response(RelatedBookSerializer(items, many=True).data)
 
-    # Holds that ran out are released when someone looks at the books (there is no background job).
     def list(self, request, *args, **kwargs):
         services.expire_due_holds()
         return super().list(request, *args, **kwargs)
@@ -184,8 +175,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 
 class LoanViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    """Borrow, list, return and renew. Regular users only see their own loans."""
-
     serializer_class = LoanSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["book"]
@@ -195,7 +184,6 @@ class LoanViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Retriev
         qs = Loan.objects.select_related("book__author", "user")
         user = self.request.user
         params = self.request.query_params
-        # Staff see every loan, unless they ask for their own with ?mine=true.
         if not user.is_staff or params.get("mine") == "true":
             qs = qs.filter(user=user)
         active = params.get("active")
@@ -213,7 +201,6 @@ class LoanViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Retriev
 
     @action(detail=True, methods=["post"], url_path="pay-fine")
     def pay_fine(self, request, pk=None):
-        """Librarians only: record that the late fee of a returned loan was paid."""
         loan = self.get_object()
         try:
             loan = services.pay_fine(loan.pk, request.user)
@@ -232,7 +219,7 @@ class LoanViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Retriev
 
     @action(detail=True, methods=["post"], url_path="return")
     def return_book(self, request, pk=None):
-        loan = self.get_object()  # 404 for loans that are not yours
+        loan = self.get_object()
         try:
             loan = services.return_loan(loan.pk, request.user)
         except services.LoanError as exc:
@@ -250,8 +237,6 @@ class LoanViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Retriev
 
 
 class ReservationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    """Join a line, list your places in line and leave a line. Regular users only see their own."""
-
     serializer_class = ReservationSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["book"]
@@ -288,7 +273,7 @@ class ReservationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
-        reservation = self.get_object()  # 404 for reservations that are not yours
+        reservation = self.get_object()
         try:
             reservation = services.cancel_reservation(reservation.pk, request.user)
         except services.LoanError as exc:
@@ -299,8 +284,6 @@ class ReservationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def staff_overview(request):
-    """What a librarian needs on one screen: late books, unpaid fees, lines for books and the most borrowed books.
-    Readers' names are shown here, so it is for staff only."""
     now = timezone.now()
     loan_rows = LoanSerializer
 
@@ -331,7 +314,6 @@ def staff_overview(request):
     active_count = Loan.objects.filter(returned_at__isnull=True).count()
     unpaid_loans = list(unpaid)
 
-    # Loans started in each of the last 8 weeks (weeks start on Monday, in the library's time zone).
     today = timezone.localdate()
     first_week = today - timedelta(days=today.weekday() + 7 * 7)
     per_week = {first_week + timedelta(weeks=i): 0 for i in range(8)}
@@ -367,7 +349,6 @@ def staff_overview(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def stats(request):
-    """Numbers for the dashboard on the home page."""
     books = Book.objects.all()
     total = books.count()
     in_stock = books.filter(in_stock=True).count()
@@ -413,7 +394,20 @@ def stats(request):
     })
 
 
-# --- A SUA VIEW DA PÁGINA INICIAL FICA AQUI, FORA DAS CLASSES ---
-@ensure_csrf_cookie  # the page posts reviews with fetch and needs the CSRF cookie
+# --- PÁGINAS HTML ---
+
+@ensure_csrf_cookie
 def home(request):
-    return render(request, 'home.html')
+    return render(request, 'home.html', {'page_mode': 'home'})
+
+@ensure_csrf_cookie
+def books_page(request):
+    return render(request, 'home.html', {'page_mode': 'books'})
+
+@ensure_csrf_cookie
+def authors_page(request):
+    return render(request, 'home.html', {'page_mode': 'authors'})
+
+@ensure_csrf_cookie
+def reviews_page(request):
+    return render(request, 'home.html', {'page_mode': 'reviews'})

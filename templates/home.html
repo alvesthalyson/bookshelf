@@ -728,15 +728,16 @@
         .panel-head .nav { display: flex; align-items: center; gap: 8px; flex: none; }
     </style>
 </head>
-<body>
+<body data-page-mode="{{ page_mode|default:'home' }}">
     <div class="offline-bar" id="offlineBar" role="status" hidden data-i18n="offline_bar">You are offline.</div>
     <div class="wrap">
         <header class="top">
             <a class="brand" href="/">Bookshelf</a>
             <div class="account">
                 <span class="who" id="whoName" hidden></span>
-                <a class="btn ghost small" href="/api/books/" data-i18n="nav_books">Books</a>
-                <a class="btn ghost small" href="/api/authors/" data-i18n="nav_authors">Authors</a>
+                <a class="btn ghost small" href="/books/" data-i18n="nav_books">Books</a>
+                <a class="btn ghost small" href="/authors/" data-i18n="nav_authors">Authors</a>
+                <a class="btn ghost small" href="/reviews/">Reviews</a>
                 <button class="btn ghost small" id="loansBtn" type="button" hidden data-i18n="my_loans">My loans</button>
                 <button class="btn ghost small" id="staffBtn" type="button" hidden data-i18n="staff_btn">Librarian</button>
                 <button class="btn ghost small" id="authBtn" type="button">Log in</button>
@@ -985,6 +986,7 @@
     (function () {
         'use strict';
 
+        var pageMode = document.body.getAttribute('data-page-mode') || 'home';
         var PAGE_SIZE = 12; // keep in sync with PAGE_SIZE in config/settings.py
         var SHELF_PAGE_SIZE = 24; // the shelf view fits more books on the screen; the server allows up to 48
         function pageSize() { return state.view === 'shelf' ? SHELF_PAGE_SIZE : PAGE_SIZE; }
@@ -1131,7 +1133,7 @@
                 comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
                 username: 'Username', password: 'Password',
                 theme_dark: 'Dark theme', theme_light: 'Light theme',
-                nav_books: 'Books (API)', nav_authors: 'Authors (API)', login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
+                nav_books: 'Books', nav_authors: 'Authors', login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
                 no_reviews: 'No reviews yet', rating_text: '{n} out of 5',
                 top_by: 'by {name}', top_open: 'Open {title}', top_reviews_one: '{n} from {count} review', top_reviews_many: '{n} from {count} reviews',
                 card_label: '{title} by {author}', card_with_status: '{base}, {status}',
@@ -1246,7 +1248,7 @@
                 comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
                 username: 'ユーザー名', password: 'パスワード',
                 theme_dark: 'ダークテーマ', theme_light: 'ライトテーマ',
-                nav_books: '本一覧(API)', nav_authors: '著者一覧(API)', login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
+                nav_books: '本一覧', nav_authors: '著者一覧', login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
                 no_reviews: 'レビューなし', rating_text: '5点中{n}点',
                 top_by: '{name} 著', top_open: '{title}を開く', top_reviews_one: '{n}（レビュー{count}件）', top_reviews_many: '{n}（レビュー{count}件）',
                 card_label: '{title}（{author} 著）', card_with_status: '{base}、{status}',
@@ -1361,7 +1363,7 @@
                 comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
                 username: 'Usuário', password: 'Senha',
                 theme_dark: 'Tema escuro', theme_light: 'Tema claro',
-                nav_books: 'Livros (API)', nav_authors: 'Autores (API)', login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
+                nav_books: 'Livros', nav_authors: 'Autores', login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
                 no_reviews: 'Sem resenhas', rating_text: '{n} de 5',
                 top_by: 'de {name}', top_open: 'Abrir {title}', top_reviews_one: '{n} em {count} resenha', top_reviews_many: '{n} em {count} resenhas',
                 card_label: '{title}, de {author}', card_with_status: '{base}, {status}',
@@ -3099,26 +3101,120 @@
         window.addEventListener('beforeinstallprompt', function (e) {
             e.preventDefault();
             installEvent = e;
-            $('installBtn').hidden = false;
+            document.getElementById('installBtn').hidden = false;
         });
-        window.addEventListener('appinstalled', function () { installEvent = null; $('installBtn').hidden = true; });
-        $('installBtn').addEventListener('click', function () {
+        window.addEventListener('appinstalled', function () { installEvent = null; document.getElementById('installBtn').hidden = true; });
+        document.getElementById('installBtn').addEventListener('click', function () {
             if (!installEvent) return;
             installEvent.prompt();
             installEvent = null;
-            $('installBtn').hidden = true;
+            document.getElementById('installBtn').hidden = true;
         });
 
-        /* ---------- start ---------- */
+                /* ---------- Páginas dedicadas (Authors & Reviews) ---------- */
+        async function loadAuthorsPage() {
+            const response = await fetch('/api/authors/');
+            const data = await response.json();
+            const authors = data.results || data;
+            const shelf = document.getElementById('shelf');
+            shelf.style.display = 'grid';
+            shelf.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+            shelf.style.gap = '20px';
+            shelf.style.padding = '20px 0';
+            shelf.innerHTML = authors.map(a => `
+                <div style="background: var(--surface); padding: 20px; border-radius: 8px; border: 1px solid var(--line); display: flex; align-items: center; gap: 15px;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; font-size: 24px; font-family: var(--display); font-weight: 800;">
+                        ${a.name.charAt(0)}
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-family: var(--display);">${a.name}</h3>
+                        <p style="margin: 4px 0; color: var(--muted); font-size: 0.9rem;">
+                            ${a.country || 'Unknown country'} ${a.birth_year ? '· Born ' + a.birth_year : ''}
+                        </p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+                async function loadReviewsPage() {
+            // Limpa o texto de "Loading books" da tela
+            document.getElementById('count').textContent = 'Loading reviews...';
+            
+            try {
+                const response = await fetch('/api/reviews/');
+                const data = await response.json();
+                const reviews = data.results || data;
+                const shelf = document.getElementById('shelf');
+                
+                // Limpa o texto de loading
+                document.getElementById('count').textContent = reviews.length + ' reviews found';
+
+                shelf.style.display = 'flex';
+                shelf.style.flexDirection = 'column';
+                shelf.style.gap = '15px';
+                shelf.style.padding = '20px 0';
+                
+                if (reviews.length === 0) {
+                    shelf.innerHTML = '<p class="muted">No reviews yet.</p>';
+                    return;
+                }
+
+                shelf.innerHTML = reviews.map(r => `
+                    <div style="background: var(--surface); padding: 20px; border-radius: 8px; border: 1px solid var(--line);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-family: var(--display);">${r.book_title || 'Book #' + r.book}</h3>
+                            <span style="color: var(--star); font-size: 18px;">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+                        </div>
+                        <p style="color: var(--muted); font-size: 0.9rem; margin: 0 0 10px;">
+                            by <strong style="color: var(--ink);">${r.reviewer_name}</strong> on ${new Date(r.created_at).toLocaleDateString()}
+                        </p>
+                        ${r.comment ? `<p style="line-height: 1.6; margin: 0;">${r.comment}</p>` : ''}
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('count').textContent = 'Error loading reviews.';
+                console.error(error);
+            }
+        }
+
+                /* ---------- start ---------- */
         applyStaticI18n();
-        $('count').textContent = t('loading_books');
+        
+        // Só mostra "Loading books" se não for a página de reviews
+        if (pageMode !== 'reviews') {
+            document.getElementById('count').textContent = t('loading_books');
+        }
+        
         readUrl();
         syncControls();
         loadSession();
-        loadAuthors();
         loadStats();
-        loadBooks();
+
+        if (pageMode === 'home') {
+            loadAuthors();
+            loadBooks();
+        } else if (pageMode === 'books') {
+            document.querySelector('.hero').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+            loadAuthors();
+            loadBooks();
+        } else if (pageMode === 'authors') {
+            document.querySelector('.hero').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+            document.getElementById('tools').style.display = 'none';
+            document.getElementById('keys').style.display = 'none';
+            document.getElementById('pager').style.display = 'none'; // Esconde a paginação
+            loadAuthorsPage();
+        } else if (pageMode === 'reviews') {
+            document.querySelector('.hero').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+            document.getElementById('tools').style.display = 'none';
+            document.getElementById('keys').style.display = 'none';
+            document.getElementById('pager').style.display = 'none'; // Esconde a paginação
+            loadReviewsPage();
+        }
     })();
+    
     </script>
     {% endverbatim %}
 </body>
