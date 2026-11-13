@@ -382,6 +382,7 @@
             cursor: pointer;
         }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        a.btn { display: inline-block; text-decoration: none; line-height: normal; }
         .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 500; }
         .btn.ghost:hover:not(:disabled) { border-color: var(--accent); }
 
@@ -734,6 +735,8 @@
             <a class="brand" href="/">Bookshelf</a>
             <div class="account">
                 <span class="who" id="whoName" hidden></span>
+                <a class="btn ghost small" href="/api/books/" data-i18n="nav_books">Books</a>
+                <a class="btn ghost small" href="/api/authors/" data-i18n="nav_authors">Authors</a>
                 <button class="btn ghost small" id="loansBtn" type="button" hidden data-i18n="my_loans">My loans</button>
                 <button class="btn ghost small" id="staffBtn" type="button" hidden data-i18n="staff_btn">Librarian</button>
                 <button class="btn ghost small" id="authBtn" type="button">Log in</button>
@@ -1128,7 +1131,7 @@
                 comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
                 username: 'Username', password: 'Password',
                 theme_dark: 'Dark theme', theme_light: 'Light theme',
-                login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
+                nav_books: 'Books (API)', nav_authors: 'Authors (API)', login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
                 no_reviews: 'No reviews yet', rating_text: '{n} out of 5',
                 top_by: 'by {name}', top_open: 'Open {title}', top_reviews_one: '{n} from {count} review', top_reviews_many: '{n} from {count} reviews',
                 card_label: '{title} by {author}', card_with_status: '{base}, {status}',
@@ -1243,7 +1246,7 @@
                 comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
                 username: 'ユーザー名', password: 'パスワード',
                 theme_dark: 'ダークテーマ', theme_light: 'ライトテーマ',
-                login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
+                nav_books: '本一覧(API)', nav_authors: '著者一覧(API)', login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
                 no_reviews: 'レビューなし', rating_text: '5点中{n}点',
                 top_by: '{name} 著', top_open: '{title}を開く', top_reviews_one: '{n}（レビュー{count}件）', top_reviews_many: '{n}（レビュー{count}件）',
                 card_label: '{title}（{author} 著）', card_with_status: '{base}、{status}',
@@ -1358,7 +1361,7 @@
                 comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
                 username: 'Usuário', password: 'Senha',
                 theme_dark: 'Tema escuro', theme_light: 'Tema claro',
-                login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
+                nav_books: 'Livros (API)', nav_authors: 'Autores (API)', login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
                 no_reviews: 'Sem resenhas', rating_text: '{n} de 5',
                 top_by: 'de {name}', top_open: 'Abrir {title}', top_reviews_one: '{n} em {count} resenha', top_reviews_many: '{n} em {count} resenhas',
                 card_label: '{title}, de {author}', card_with_status: '{base}, {status}',
