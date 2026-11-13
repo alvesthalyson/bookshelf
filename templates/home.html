@@ -405,6 +405,80 @@
             flex-wrap: wrap;
         }
 
+        /* View switch: covers or a shelf of spines */
+        .seg { display: inline-flex; align-self: flex-end; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+        .seg button { padding: 8px 16px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 0.9rem; cursor: pointer; }
+        .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+        .seg button:focus-visible { outline-offset: -3px; }
+
+        /* The shelf: wooden planks, books standing on them. Each spine is as tall as its row so that every row gets a plank. */
+        :root[data-theme="light"] { --wall: #efe6d6; --wall-2: #e4d8c2; --plank: #b88a58; --plank-hi: #d2a974; --plank-lo: #8a6238; }
+        :root[data-theme="dark"]  { --wall: #1b1511; --wall-2: #130f0c; --plank: #6d4a2b; --plank-hi: #8a6139; --plank-lo: #3f2a17; }
+        .shelf.rack {
+            --k: 1; --R: calc(236px * var(--k)); --P: 16px;
+            display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--P) 5px;
+            padding: 28px 22px var(--P);
+            border-radius: 6px;
+            perspective: 1200px; perspective-origin: 50% 10%;
+            background:
+                repeating-linear-gradient(to bottom,
+                    transparent 0 var(--R),
+                    var(--plank-hi) var(--R) calc(var(--R) + 2px),
+                    var(--plank) calc(var(--R) + 2px) calc(var(--R) + var(--P) - 3px),
+                    var(--plank-lo) calc(var(--R) + var(--P) - 3px) calc(var(--R) + var(--P)))
+                    0 28px / 100% calc(100% - 28px) no-repeat,
+                linear-gradient(var(--wall-2), var(--wall));
+            box-shadow: inset 0 22px 34px -18px rgba(0, 0, 0, 0.45), inset 0 0 0 1px var(--line);
+        }
+        @media (max-width: 560px) { .shelf.rack { --k: 0.82; padding-inline: 12px; } }
+        .spine {
+            position: relative; flex: none; display: flex; justify-content: center;
+            width: calc(var(--w) * var(--k)); height: calc(var(--ht) * var(--k));
+            margin-top: calc(var(--R) - var(--ht) * var(--k));
+            padding: 0; border: 0; border-radius: 2px 2px 1px 1px;
+            background: linear-gradient(90deg, hsl(var(--h) 36% 33%), hsl(var(--h) 42% 46%) 38%, hsl(var(--h) 36% 31%));
+            color: #fff; font: inherit; cursor: pointer;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 3px 0 5px rgba(0, 0, 0, 0.3);
+            transform-origin: 50% 100%;
+            transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.25s;
+        }
+        .spine::before, .spine::after { content: ""; position: absolute; left: 0; right: 0; height: 5px; border-block: 1px solid rgba(255, 255, 255, 0.4); }
+        .spine::before { top: 10px; }
+        .spine::after { bottom: 22px; }
+        .sp-title {
+            writing-mode: vertical-rl; margin-top: 24px; max-height: calc(var(--ht) * var(--k) - 62px);
+            font-family: var(--display); font-weight: 700; font-size: 0.86rem; line-height: 1.1;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .sp-mark { position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 0.7rem; line-height: 1; color: #ffd36b; }
+        .spine:hover, .spine:focus-visible { transform: translateZ(70px) translateY(-8px) rotateX(-3deg); z-index: 2; }
+        .spine:focus-visible { outline-offset: 3px; }
+        .spine.is-out { filter: saturate(0.3) brightness(0.8); transform: translateZ(-16px); }
+        .spine.is-out:hover, .spine.is-out:focus-visible { transform: translateZ(70px) translateY(-8px) rotateX(-3deg); filter: none; }
+        .spine.mine { box-shadow: inset 0 6px 0 var(--accent), inset 0 0 0 1px rgba(255, 255, 255, 0.08), 3px 0 5px rgba(0, 0, 0, 0.3); }
+        .shelf.enter .spine { animation: shelf-in 0.38s ease-out backwards; animation-delay: calc(var(--i, 0) * 22ms); }
+        .spine.pulled { animation: pull-out 0.85s ease-in-out; }
+        .spine.pushed { animation: push-in 0.75s ease-out; }
+
+        /* Preview card next to a book under the mouse */
+        .peek {
+            position: fixed; z-index: 30; width: 280px; max-width: calc(100vw - 16px);
+            padding: 14px 16px; background: var(--surface); color: var(--ink);
+            border: 1px solid var(--line); border-radius: 10px;
+            box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.4);
+            pointer-events: none; opacity: 0; transform: translateY(6px);
+            transition: opacity 0.15s, transform 0.15s;
+        }
+        .peek:not(.on) { visibility: hidden; }
+        .peek.on { opacity: 1; transform: none; }
+        .peek .pk-title { font-family: var(--display); font-weight: 800; font-size: 1.15rem; line-height: 1.2; }
+        .peek .pk-by { color: var(--muted); font-size: 0.88rem; margin-top: 2px; }
+        .peek .pk-rate { margin-top: 8px; font-size: 0.9rem; }
+        .peek .pk-desc { margin: 8px 0 0; font-size: 0.88rem; line-height: 1.45; }
+        .peek .pk-state { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 0.82rem; font-weight: 700; }
+        .peek .pk-state.out { color: var(--muted); }
+        @media (prefers-reduced-motion: reduce) { .peek, .spine { transition: none; } .peek { transform: none; } }
+
         /* Detail panel */
         dialog.side {
             position: fixed;
@@ -444,7 +518,76 @@
         .btn.small { padding: 5px 14px; font-size: 0.9rem; border-radius: 999px; }
         @keyframes panel-in { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-        .panel { padding: 28px 28px 40px; }
+        .panel { --pad: 28px; --pt: 28px; padding: var(--pt) var(--pad) 40px; }
+
+        /* Hero of the detail panel: a 3D book on a color taken from its cover */
+        @property --tint { syntax: '<color>'; inherits: true; initial-value: transparent; }
+        @property --open { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+        .hero-bar { position: sticky; top: 0; z-index: 5; height: 0; margin: calc(var(--pt) * -1) calc(var(--pad) * -1) 0; }
+        .hero-bar .nav { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
+        .hero-bar .btn { background: var(--surface); }
+        .bk-hero {
+            --tint: hsl(var(--h, 220) 40% 50%);
+            margin: 0 calc(var(--pad) * -1);
+            padding: 62px var(--pad) 34px;
+            background: radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--tint) 42%, var(--surface)) 0%, color-mix(in srgb, var(--tint) 10%, var(--surface)) 62%, var(--surface) 100%);
+            transition: --tint 0.6s;
+            overflow: hidden;
+            border-bottom: 1px solid var(--line);
+        }
+        .hero-stage { display: flex; justify-content: center; perspective: 1000px; }
+        .hero-slot { position: relative; width: 148px; aspect-ratio: 2 / 3; }
+        .hero-slot::after {
+            content: ""; position: absolute; left: 6%; right: -8%; bottom: -16px; height: 20px;
+            background: radial-gradient(closest-side, rgba(0, 0, 0, 0.5), transparent);
+            filter: blur(4px); z-index: -1;
+        }
+        .b3d {
+            --d: 26px;
+            --open: 0deg;
+            position: absolute; inset: 0;
+            transform-style: preserve-3d;
+            transform: rotateX(var(--rx, 3deg)) rotateY(var(--ry, -28deg));
+            transition: transform 0.35s ease-out, --open 0.85s cubic-bezier(0.3, 0.7, 0.2, 1);
+        }
+        .b3d > * { position: absolute; }
+        .b3d-back { inset: 0; transform: translateZ(calc(var(--d) / -2)); background: hsl(var(--h) var(--cover-spine)); border-radius: 2px 5px 5px 2px; }
+        .b3d-spine { top: 0; bottom: 0; left: 0; width: var(--d); transform: translateX(calc(var(--d) / -2)) rotateY(-90deg); background: linear-gradient(90deg, hsl(var(--h) var(--cover-spine)), color-mix(in srgb, hsl(var(--h) var(--cover-spine)) 70%, #000)); }
+        .b3d-edge { top: 1px; bottom: 1px; right: 0; width: var(--d); transform: translateX(calc(var(--d) / 2)) rotateY(90deg); background: repeating-linear-gradient(90deg, #f6f1e6 0 2px, #d8d0bf 2px 3px); }
+        .b3d-top { left: 0; right: 1px; top: 0; height: var(--d); transform: translateY(calc(var(--d) / -2)) rotateX(90deg); background: repeating-linear-gradient(0deg, #f6f1e6 0 2px, #d8d0bf 2px 3px); }
+        .b3d-pages {
+            inset: 2px 2px 2px 0; transform: translateZ(calc(var(--d) / 2 - 2px));
+            background: #f6f1e6; color: #2a2118; border-radius: 0 3px 3px 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; padding: 10px;
+        }
+        /* Hidden while the cover is closed: a closed book never shows its pages, and Chrome drew them over the cover */
+        .b3d:not(.open):not(.peeking) .b3d-pages { visibility: hidden; }
+        .b3d-pages .pg-big { font-family: var(--display); font-weight: 800; font-size: 2.2rem; line-height: 1; }
+        .b3d-pages .pg-stars { color: #b9770e; letter-spacing: 1px; }
+        .b3d-pages .pg-sub { font-size: 0.78rem; opacity: 0.75; }
+        /* The cover has two faces (outside and inside) so that it can open around the spine. They are siblings,
+           not nested, because nested 3D layers were sorted wrongly in Chrome. */
+        .b3d-out, .b3d-in { inset: 0; transform-origin: left center; backface-visibility: hidden; }
+        .b3d-out { transform: translateZ(calc(var(--d) / 2)) rotateY(var(--open)); }
+        .b3d-out .cover { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+        .b3d-in { transform: translateZ(calc(var(--d) / 2)) rotateY(var(--open)) translateX(100%) rotateY(180deg); background: #ece5d6; border-radius: 5px 2px 2px 5px; }
+        .b3d.open { --open: -150deg; }
+        .b3d.enter { animation: book-enter 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+        .b3d.peeking { animation: book-peek 2.2s 0.55s ease-in-out both; }
+        @keyframes book-enter { from { transform: rotateX(3deg) rotateY(-100deg) translateY(12px); opacity: 0; } }
+        @keyframes book-peek { 0%, 100% { --open: 0deg; } 30%, 68% { --open: -150deg; } }
+        .hero-slot { cursor: pointer; }
+        @media (max-width: 520px) { .hero-slot { width: 124px; } }
+        @media (prefers-reduced-motion: reduce) {
+            .b3d, .bk-hero { transition: none; }
+            .b3d.enter, .b3d.peeking { animation: none; }
+        }
+
+        /* Cover flying from the shelf into the panel and back (View Transitions) */
+        dialog.side.no-slide[open] { animation: none; }
+        ::view-transition-group(book-cover) { animation-duration: 0.55s; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+        ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
+        .bk-hero + .panel-head { margin-top: 24px; }
         .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
         .panel h2 { margin: 0; font-family: var(--display); font-size: 2rem; line-height: 1.15; }
         .panel .by { margin: 6px 0 0; color: var(--muted); }
@@ -492,7 +635,7 @@
 
         @media (max-width: 520px) {
             .status { flex-direction: column; gap: 2px; }
-            .panel { padding: 22px 18px 36px; }
+            .panel { --pad: 18px; --pt: 22px; padding: var(--pt) var(--pad) 36px; }
         }
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -652,6 +795,10 @@
                 </select>
             </label>
             <label class="check"><input type="checkbox" id="inStock"> <span data-i18n="in_stock_only">In stock only</span></label>
+            <div class="seg" role="group" aria-label="View" data-i18n-aria-label="view_label">
+                <button type="button" id="viewGrid" aria-pressed="true" data-i18n="view_grid">Covers</button>
+                <button type="button" id="viewShelf" aria-pressed="false" data-i18n="view_shelf">Shelf</button>
+            </div>
             <label class="check" id="favField" hidden><input type="checkbox" id="favOnly"> <span data-i18n="fav_only">Wish list only</span></label>
         </form>
 
@@ -682,17 +829,24 @@
         </footer>
     </div>
 
+    <div class="peek" id="peek" aria-hidden="true"></div>
+
     <dialog id="detail" class="side" aria-labelledby="dTitle">
         <div class="panel">
-            <div class="panel-head">
-                <div>
-                    <h2 id="dTitle"></h2>
-                    <p class="by" id="dAuthor"></p>
-                </div>
+            <div class="hero-bar">
                 <div class="nav">
                     <button class="btn ghost small" id="dPrev" type="button" aria-label="Previous book" title="Previous book" data-i18n-aria-label="prev_book" data-i18n-title="prev_book" disabled>‹</button>
                     <button class="btn ghost small" id="dNext" type="button" aria-label="Next book" title="Next book" data-i18n-aria-label="next_book" data-i18n-title="next_book" disabled>›</button>
                     <button class="btn ghost" id="dClose" type="button" data-i18n="close">Close</button>
+                </div>
+            </div>
+            <div class="bk-hero" id="dHero" aria-hidden="true">
+                <div class="hero-stage"><div class="hero-slot" id="dSlot"></div></div>
+            </div>
+            <div class="panel-head">
+                <div>
+                    <h2 id="dTitle"></h2>
+                    <p class="by" id="dAuthor"></p>
                 </div>
             </div>
             <ul class="facts" id="dFacts"></ul>
@@ -829,7 +983,9 @@
         'use strict';
 
         var PAGE_SIZE = 12; // keep in sync with PAGE_SIZE in config/settings.py
-        var state = { page: 1, search: '', author: '', genre: '', country: '', inStock: false, favorites: false, ordering: '-published_year' };
+        var SHELF_PAGE_SIZE = 24; // the shelf view fits more books on the screen; the server allows up to 48
+        function pageSize() { return state.view === 'shelf' ? SHELF_PAGE_SIZE : PAGE_SIZE; }
+        var state = { view: 'grid', page: 1, search: '', author: '', genre: '', country: '', inStock: false, favorites: false, ordering: '-published_year' };
         var books = [];      // books on the current page
         var current = null;  // book open in the detail panel
         var user = null;     // { username, is_staff } when logged in
@@ -940,7 +1096,7 @@
                 footer_api: 'Browse the API', footer_admin: 'Admin', footer_covers: 'Covers from Open Library',
                 key_search: 'Search', key_random: 'Surprise me', key_browse: 'Previous / next book',
                 prev_book: 'Previous book', next_book: 'Next book', close: 'Close', lang_label: 'Language',
-                fav_only: 'Wish list only', fav_save: 'Save to wish list', fav_saved: 'Saved to wish list', speak_saved: 'in your wish list',
+                view_label: 'View', view_grid: 'Covers', view_shelf: 'Shelf', fav_only: 'Wish list only', fav_save: 'Save to wish list', fav_saved: 'Saved to wish list', speak_saved: 'in your wish list',
                 fav_fail: 'Could not update your wish list. Try again.',
                 offline_bar: 'You are offline. Showing saved books. Borrowing, reserving and reviews need a connection.', install_app: 'Install the app',
                 related_title: 'You may also like', rel_readers: 'Readers also borrowed', rel_author: 'Same author', rel_genre: 'Same genre',
@@ -1055,7 +1211,7 @@
                 footer_api: 'APIを見る', footer_admin: '管理画面', footer_covers: '表紙：Open Library',
                 key_search: '検索', key_random: 'おまかせの一冊', key_browse: '前の本 / 次の本',
                 prev_book: '前の本', next_book: '次の本', close: '閉じる', lang_label: '言語',
-                fav_only: 'お気に入りのみ', fav_save: 'お気に入りに追加', fav_saved: 'お気に入りに追加済み', speak_saved: 'お気に入りに登録済み',
+                view_label: '表示', view_grid: '表紙', view_shelf: '本棚', fav_only: 'お気に入りのみ', fav_save: 'お気に入りに追加', fav_saved: 'お気に入りに追加済み', speak_saved: 'お気に入りに登録済み',
                 fav_fail: 'お気に入りを更新できませんでした。もう一度お試しください。',
                 offline_bar: 'オフラインです。保存済みの本を表示しています。貸出・予約・レビューには接続が必要です。', install_app: 'アプリをインストール',
                 related_title: 'こちらもおすすめ', rel_readers: 'この本を借りた人はこちらも', rel_author: '同じ著者', rel_genre: '同じジャンル',
@@ -1170,7 +1326,7 @@
                 footer_api: 'Ver a API', footer_admin: 'Administração', footer_covers: 'Capas da Open Library',
                 key_search: 'Buscar', key_random: 'Surpreenda-me', key_browse: 'Livro anterior / próximo',
                 prev_book: 'Livro anterior', next_book: 'Próximo livro', close: 'Fechar', lang_label: 'Idioma',
-                fav_only: 'Só favoritos', fav_save: 'Salvar nos favoritos', fav_saved: 'Nos favoritos', speak_saved: 'nos seus favoritos',
+                view_label: 'Exibição', view_grid: 'Capas', view_shelf: 'Estante', fav_only: 'Só favoritos', fav_save: 'Salvar nos favoritos', fav_saved: 'Nos favoritos', speak_saved: 'nos seus favoritos',
                 fav_fail: 'Não foi possível atualizar seus favoritos. Tente de novo.',
                 offline_bar: 'Você está offline. Mostrando os livros salvos. Pegar, reservar e avaliar precisam de conexão.', install_app: 'Instalar o app',
                 related_title: 'Você também pode gostar', rel_readers: 'Quem leu este também pegou', rel_author: 'Mesmo autor', rel_genre: 'Mesmo gênero',
@@ -1379,14 +1535,20 @@
 
         function applyStatus(card, book) {
             var cover = card.querySelector('.cover');
-            var old = cover.querySelector('.badge');
-            if (old) old.remove();
-            var oldMark = cover.querySelector('.fav-mark');
-            if (oldMark) oldMark.remove();
-            if (book.favorited) cover.append(el('span', { class: 'fav-mark', 'aria-hidden': 'true', text: '♥' }));
             var status = statusOf(book);
-            cover.classList.toggle('has-badge', !!status);
-            if (status) cover.append(el('span', { class: 'badge' + (status.mine ? ' mine' : ''), text: status.text }));
+            if (cover) {
+                var old = cover.querySelector('.badge');
+                if (old) old.remove();
+                var oldMark = cover.querySelector('.fav-mark');
+                if (oldMark) oldMark.remove();
+                if (book.favorited) cover.append(el('span', { class: 'fav-mark', 'aria-hidden': 'true', text: '♥' }));
+                cover.classList.toggle('has-badge', !!status);
+                if (status) cover.append(el('span', { class: 'badge' + (status.mine ? ' mine' : ''), text: status.text }));
+            } else { // a spine on the shelf: no room for a strip, so a colored top edge says it is yours
+                card.classList.toggle('mine', !!(status && status.mine));
+                var mark = card.querySelector('.sp-mark');
+                if (mark) mark.textContent = book.favorited ? '♥' : '';
+            }
             var base = t('card_label', { title: book.title, author: book.author_name });
             var label = status ? t('card_with_status', { base: base, status: status.speak }) : base;
             if (book.favorited) label = t('card_with_status', { base: label, status: t('speak_saved') });
@@ -1396,7 +1558,7 @@
         // Refresh the strips on the cards that are already on screen. Re-drawing the shelf
         // would restart its animations.
         function updateStatuses() {
-            Array.prototype.forEach.call(shelf.querySelectorAll('.book'), function (card) {
+            Array.prototype.forEach.call(shelf.querySelectorAll('.book, .spine'), function (card) {
                 var id = Number(card.getAttribute('data-id'));
                 var book = books.filter(function (b) { return b.id === id; })[0];
                 if (book) applyStatus(card, book);
@@ -1404,7 +1566,7 @@
         }
 
         function bookCard(book) {
-            var card = el('button', { class: 'book' + (book.in_stock ? '' : ' is-out'), type: 'button', 'data-id': book.id, onclick: function () { openDetail(book.id); } },
+            var card = el('button', { class: 'book' + (book.in_stock ? '' : ' is-out'), type: 'button', 'data-id': book.id, onclick: function (e) { openDetail(book.id, e.currentTarget.querySelector('.cover')); } },
                 coverEl(book),
                 el('span', { class: 'book-meta', 'aria-hidden': 'true' },
                     book.average_rating == null
@@ -1415,10 +1577,25 @@
             return card;
         }
 
+        // A book standing on the shelf. Its width follows the page count, its height varies a little.
+        function spineCard(book) {
+            var h = hue(book.title), pages = book.pages || 260;
+            var height = Math.min(216, 150 + Math.round(pages / 9) + (h % 7) * 3);
+            var width = Math.min(62, Math.max(30, 24 + Math.round(pages / 13) + (h % 5) * 2));
+            var card = el('button', {
+                class: 'spine' + (book.in_stock ? '' : ' is-out'), type: 'button', 'data-id': book.id,
+                style: '--h:' + h + ';--w:' + width + 'px;--ht:' + height + 'px',
+                onclick: function (e) { openDetail(book.id, e.currentTarget); }
+            }, el('span', { class: 'sp-title', 'aria-hidden': 'true', text: book.title }), el('span', { class: 'sp-mark', 'aria-hidden': 'true' }));
+            applyStatus(card, book);
+            return card;
+        }
+
         function renderShelf(entrance) {
             clearTimeout(enterTimer);
             shelf.classList.remove('enter');
-            var cards = books.map(bookCard);
+            shelf.classList.toggle('rack', state.view === 'shelf');
+            var cards = books.map(state.view === 'shelf' ? spineCard : bookCard);
             cards.forEach(function (card, i) { card.style.setProperty('--i', Math.min(i, 11)); });
             shelf.replaceChildren.apply(shelf, cards);
             if (entrance && !reduceMotion.matches) {
@@ -1435,13 +1612,14 @@
             var item = flash;
             flash = null;
             if (reduceMotion.matches) return;
-            var cover = shelf.querySelector('.book[data-id="' + item.id + '"] .cover');
+            var cover = shelf.querySelector('.book[data-id="' + item.id + '"] .cover, .spine[data-id="' + item.id + '"]');
             if (!cover) return;
             cover.classList.add(item.kind);
             cover.addEventListener('animationend', function () { cover.classList.remove(item.kind); }, { once: true });
         }
 
         function showNotice(title, text, buttonLabel, handler) {
+            shelf.classList.remove('rack');
             shelf.replaceChildren(el('div', { class: 'notice' },
                 el('h2', { text: title }),
                 el('p', { text: text }),
@@ -1485,6 +1663,7 @@
             if (controller) controller.abort();
             controller = new AbortController();
             var params = new URLSearchParams({ page: state.page, ordering: state.ordering });
+            if (state.view === 'shelf') params.set('page_size', SHELF_PAGE_SIZE);
             if (state.search) params.set('search', state.search);
             if (state.author) params.set('author', state.author);
             if (state.genre) params.set('genre', state.genre);
@@ -1496,7 +1675,7 @@
             return api('/api/books/?' + params, { signal: controller.signal }).then(function (data) {
                 books = data.results;
                 listState = {
-                    kind: 'books', count: data.count, pages: Math.max(1, Math.ceil(data.count / PAGE_SIZE)),
+                    kind: 'books', count: data.count, pages: Math.max(1, Math.ceil(data.count / pageSize())),
                     hasPrev: !!data.previous, hasNext: !!data.next
                 };
                 $('pageInfo').textContent = '';
@@ -1579,7 +1758,7 @@
                 top.replaceChildren(el('p', { class: 'muted', text: t('top_empty') }));
             } else {
                 var best = s.top_rated;
-                top.replaceChildren(el('button', { class: 'top-book', type: 'button', 'aria-label': t('top_open', { title: best.title }), onclick: function () { openDetail(best.id); } },
+                top.replaceChildren(el('button', { class: 'top-book', type: 'button', 'aria-label': t('top_open', { title: best.title }), onclick: function (e) { openDetail(best.id, e.currentTarget.querySelector('.cover')); } },
                     coverEl({ title: best.title, author_name: best.author_name, cover_url: '' }),
                     el('span', null,
                         el('span', { class: 't-title', text: best.title }), el('br'),
@@ -1629,7 +1808,7 @@
 
         /* ---------- filters in the address bar ---------- */
 
-        var URL_KEYS = ['q', 'author', 'genre', 'country', 'stock', 'fav', 'sort', 'page'];
+        var URL_KEYS = ['q', 'author', 'genre', 'country', 'stock', 'fav', 'sort', 'page', 'view'];
         var SORTS = ['-published_year', 'published_year', 'title', '-avg_rating'];
 
         // Read the filters from the address, ignoring anything that is not valid.
@@ -1644,6 +1823,9 @@
             state.favorites = p.get('fav') === '1';
             state.ordering = SORTS.indexOf(p.get('sort')) > -1 ? p.get('sort') : SORTS[0];
             state.page = page > 0 ? page : 1;
+            var view = p.get('view'), saved = '';
+            try { saved = localStorage.getItem('bookshelf-view') || ''; } catch (e) {}
+            state.view = view === 'shelf' || view === 'grid' ? view : (saved === 'shelf' ? 'shelf' : 'grid');
         }
 
         // Write the filters to the address. Other parameters, like ?theme=, are kept.
@@ -1660,6 +1842,7 @@
                 if (state.favorites) p.set('fav', '1');
                 if (state.ordering !== SORTS[0]) p.set('sort', state.ordering);
                 if (state.page > 1) p.set('page', state.page);
+                if (state.view === 'shelf') p.set('view', 'shelf');
                 var query = p.toString();
                 var url = location.pathname + (query ? '?' + query : '') + location.hash;
                 if (url === location.pathname + location.search + location.hash) return;
@@ -1674,8 +1857,25 @@
             $('ordering').value = state.ordering;
             $('inStock').checked = state.inStock;
             $('favOnly').checked = state.favorites;
+            syncView();
             markCountry();
         }
+
+        function syncView() {
+            $('viewGrid').setAttribute('aria-pressed', String(state.view === 'grid'));
+            $('viewShelf').setAttribute('aria-pressed', String(state.view === 'shelf'));
+        }
+
+        function setView(view) {
+            if (state.view === view) return;
+            state.view = view;
+            state.page = 1; // the pages are not the same size in the two views
+            try { localStorage.setItem('bookshelf-view', view); } catch (e) {}
+            syncView();
+            go();
+        }
+        $('viewGrid').addEventListener('click', function () { setView('grid'); });
+        $('viewShelf').addEventListener('click', function () { setView('shelf'); });
 
         function go(replace) {
             writeUrl(replace);
@@ -1701,6 +1901,77 @@
         $('prev').addEventListener('click', function () { state.page = Math.max(1, state.page - 1); go(); window.scrollTo({ top: 0 }); });
         $('next').addEventListener('click', function () { state.page += 1; go(); window.scrollTo({ top: 0 }); });
 
+        /* ---------- preview card under the mouse ---------- */
+
+        var peekEl = $('peek'), peekTimer = 0, peekFor = null;
+
+        function peekClip(text, max) {
+            text = String(text || '').replace(/\s+/g, ' ').trim();
+            return text.length > max ? text.slice(0, max - 1).replace(/\s+\S*$/, '') + '…' : text;
+        }
+
+        function fillPeek(book) {
+            var status = statusOf(book);
+            var facts = [book.genre, book.pages ? t('fact_pages', { n: book.pages }) : '', t('fact_published', { year: book.published_year })].filter(Boolean).join(' · ');
+            peekEl.replaceChildren(
+                el('div', { class: 'pk-title', text: book.title }),
+                el('div', { class: 'pk-by', text: t('by_author', { name: book.author_name }) }),
+                el('div', { class: 'pk-rate' }, book.average_rating == null
+                    ? el('span', { class: 'muted', text: t('no_reviews') })
+                    : el('span', null, el('span', { class: 'stars', text: stars(book.average_rating) }), ' ' + book.average_rating.toFixed(1))),
+                el('p', { class: 'pk-desc', text: book.description ? peekClip(book.description, 150) : facts }),
+                el('div', { class: 'pk-state' + (!status && book.in_stock ? '' : ' out'), text: status ? status.speak : t('fact_in') }));
+        }
+
+        function placePeek(card) {
+            var r = card.getBoundingClientRect(), pw = peekEl.offsetWidth, ph = peekEl.offsetHeight;
+            var vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+            var left = r.right + 14, top = r.top + r.height / 2 - ph / 2;
+            if (left + pw > vw - 8) left = r.left - pw - 14;
+            if (left < 8) { // narrow window: above or below the book
+                left = Math.min(Math.max(8, r.left + r.width / 2 - pw / 2), vw - pw - 8);
+                top = r.bottom + 12 + ph <= vh - 8 ? r.bottom + 12 : r.top - ph - 12;
+            }
+            peekEl.style.left = Math.round(left) + 'px';
+            peekEl.style.top = Math.round(Math.min(Math.max(8, top), vh - ph - 8)) + 'px';
+        }
+
+        function hidePeek() {
+            clearTimeout(peekTimer);
+            peekFor = null;
+            peekEl.classList.remove('on');
+        }
+
+        function showPeek(card) {
+            var id = Number(card.getAttribute('data-id'));
+            var book = books.filter(function (b) { return b.id === id; })[0];
+            if (!book || !document.contains(card) || detail.open || loansDlg.open || staffDlg.open || authDlg.open) return;
+            fillPeek(book);
+            placePeek(card);
+            peekEl.classList.add('on');
+        }
+
+        shelf.addEventListener('pointerover', function (e) {
+            if (e.pointerType !== 'mouse') return;
+            var card = e.target.closest && e.target.closest('.book, .spine');
+            if (!card || card === peekFor) return;
+            hidePeek();
+            peekFor = card;
+            peekTimer = setTimeout(function () { showPeek(card); }, 350);
+        });
+        shelf.addEventListener('pointerout', function (e) {
+            var card = e.target.closest && e.target.closest('.book, .spine');
+            if (card && !card.contains(e.relatedTarget)) hidePeek();
+        });
+        shelf.addEventListener('focusin', function (e) {
+            var card = e.target.closest && e.target.closest('.book, .spine');
+            if (card && card.matches(':focus-visible')) { hidePeek(); peekFor = card; showPeek(card); }
+        });
+        shelf.addEventListener('focusout', hidePeek);
+        shelf.addEventListener('click', hidePeek);
+        window.addEventListener('scroll', hidePeek, { passive: true });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hidePeek(); });
+
         /* ---------- detail panel ---------- */
 
         function renderDetailHead(book) {
@@ -1724,6 +1995,7 @@
                     el('span', { class: 'stars', role: 'img', 'aria-label': ratingText(book), text: stars(book.average_rating) }));
             }
             renderFavBtn(book);
+            updateHeroPage(book);
             updateNav();
         }
 
@@ -1759,13 +2031,148 @@
         }
 
         // The book may not be on the current page (for example the most loved book), so fetch it when needed.
-        function openDetail(id) {
+        function openDetail(id, source) {
             var found = books.filter(function (b) { return b.id === id; })[0];
-            if (found) return showDetail(found);
-            return api('/api/books/' + encodeURIComponent(id) + '/').then(showDetail).catch(function () {});
+            if (found) return showDetail(found, source);
+            return api('/api/books/' + encodeURIComponent(id) + '/').then(function (book) { return showDetail(book, source); }).catch(function () {});
         }
 
-        function showDetail(book) {
+        /* ----- hero: 3D book, color from the cover, cover flying in and out ----- */
+
+        var canTransition = typeof document.startViewTransition === 'function';
+        function animated() { return !reduceMotion.matches; }
+
+        function heroPage(book) {
+            return book.average_rating == null
+                ? [el('span', { class: 'pg-sub', text: t('no_reviews') })]
+                : [el('span', { class: 'pg-big', text: book.average_rating.toFixed(1) }), el('span', { class: 'pg-stars', text: stars(book.average_rating) })];
+        }
+
+        function updateHeroPage(book) {
+            var page = $('dSlot').querySelector('.b3d-pages');
+            if (page) page.replaceChildren.apply(page, heroPage(book));
+        }
+
+        function renderHero(book, mode) {
+            var b3d = el('div', { class: 'b3d' + (mode === 'enter' && animated() ? ' enter' : '') + (mode === 'vt' && animated() ? ' peeking' : ''), style: '--h:' + hue(book.title) },
+                el('div', { class: 'b3d-back' }), el('div', { class: 'b3d-spine' }), el('div', { class: 'b3d-edge' }), el('div', { class: 'b3d-top' }),
+                el('div', { class: 'b3d-pages' }),
+                el('div', { class: 'b3d-in' }),
+                el('div', { class: 'b3d-out' }, coverEl(book)));
+            b3d.addEventListener('animationend', function () { b3d.classList.remove('peeking', 'enter'); });
+            $('dSlot').replaceChildren(b3d);
+            updateHeroPage(book);
+            setTint(book);
+        }
+
+        // Click the book to open its cover. The pages show the rating.
+        $('dSlot').addEventListener('click', function () {
+            var b3d = $('dSlot').querySelector('.b3d');
+            if (b3d) { b3d.classList.remove('peeking'); b3d.classList.toggle('open'); }
+        });
+        // The book follows the mouse a little.
+        $('dHero').addEventListener('pointermove', function (e) {
+            var b3d = $('dSlot').querySelector('.b3d');
+            if (!b3d || e.pointerType !== 'mouse' || !animated()) return;
+            var r = $('dHero').getBoundingClientRect();
+            b3d.style.setProperty('--ry', (-28 + ((e.clientX - r.left) / r.width - 0.5) * 36) + 'deg');
+            b3d.style.setProperty('--rx', (3 + (0.5 - (e.clientY - r.top) / r.height) * 14) + 'deg');
+        });
+        $('dHero').addEventListener('pointerleave', function () {
+            var b3d = $('dSlot').querySelector('.b3d');
+            if (b3d) { b3d.style.removeProperty('--ry'); b3d.style.removeProperty('--rx'); }
+        });
+
+        // Dominant color of the cover. The image is read again with CORS so the canvas can be read. When the
+        // server does not allow that, the color comes from the book's own hue, like its typographic cover.
+        var tintCache = {};
+
+        function sampleColor(url) {
+            return new Promise(function (resolve, reject) {
+                var img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.referrerPolicy = 'no-referrer';
+                img.onload = function () {
+                    try {
+                        var w = 24, h = 36, canvas = document.createElement('canvas');
+                        canvas.width = w; canvas.height = h;
+                        var ctx = canvas.getContext('2d', { willReadFrequently: true });
+                        ctx.drawImage(img, 0, 0, w, h);
+                        var px = ctx.getImageData(0, 0, w, h).data;
+                        var x = 0, y = 0, sat = 0, light = 0, weight = 0, n = 0;
+                        for (var i = 0; i < px.length; i += 4) {
+                            if (px[i + 3] < 200) continue;
+                            var r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255;
+                            var max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+                            var sv = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+                            var hh = d === 0 ? 0 : max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+                            var wgt = sv * (1 - Math.abs(2 * l - 1)) + 0.001;
+                            x += Math.cos(hh * Math.PI / 3) * wgt; y += Math.sin(hh * Math.PI / 3) * wgt;
+                            sat += sv * wgt; light += l; weight += wgt; n++;
+                        }
+                        if (!n) { reject(new Error('empty')); return; }
+                        var hue360 = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+                        var s = Math.min(70, Math.max(22, (sat / weight) * 100));
+                        var l2 = Math.min(55, Math.max(38, (light / n) * 100));
+                        resolve('hsl(' + Math.round(hue360) + ' ' + Math.round(s) + '% ' + Math.round(l2) + '%)');
+                    } catch (e) { reject(e); }
+                };
+                img.onerror = function () { reject(new Error('image')); };
+                img.src = url;
+            });
+        }
+
+        function setTint(book) {
+            var hero = $('dHero');
+            hero.style.setProperty('--h', hue(book.title));
+            hero.style.setProperty('--tint', 'hsl(' + hue(book.title) + ' 42% 50%)');
+            var url = coverUrl(book);
+            if (!url || tintCache[url] === null) return;
+            if (tintCache[url]) { hero.style.setProperty('--tint', tintCache[url]); return; }
+            var id = book.id;
+            sampleColor(url).then(function (color) {
+                tintCache[url] = color;
+                if (current && current.id === id) hero.style.setProperty('--tint', color);
+            }).catch(function () { tintCache[url] = null; });
+        }
+
+        function showDetail(book, source) {
+            if (!detail.open && source && canTransition && animated() && document.contains(source)) {
+                source.style.viewTransitionName = 'book-cover';
+                var slot = $('dSlot');
+                var vt = document.startViewTransition(function () {
+                    source.style.viewTransitionName = '';
+                    fillDetail(book, 'vt');
+                    slot.style.viewTransitionName = 'book-cover';
+                });
+                vt.finished.then(function () { slot.style.viewTransitionName = ''; }, function () { slot.style.viewTransitionName = ''; });
+                return vt.finished.catch(function () {});
+            }
+            return fillDetail(book, detail.open || !animated() ? 'enter' : 'none');
+        }
+
+        // Close the panel. The cover flies back to its place on the shelf when the browser can do that.
+        function closeDetail() {
+            if (!detail.open) return;
+            var id = current && current.id;
+            var target = id != null ? shelf.querySelector('[data-id="' + id + '"] .cover, .spine[data-id="' + id + '"]') : null;
+            if (target && canTransition && animated()) {
+                var slot = $('dSlot');
+                slot.style.viewTransitionName = 'book-cover';
+                var vt = document.startViewTransition(function () {
+                    slot.style.viewTransitionName = '';
+                    target.style.viewTransitionName = 'book-cover';
+                    detail.close();
+                });
+                vt.finished.then(function () { target.style.viewTransitionName = ''; }, function () { target.style.viewTransitionName = ''; });
+            } else {
+                detail.close();
+            }
+        }
+
+        function fillDetail(book, mode) {
+            hidePeek();
+            detail.classList.toggle('no-slide', mode === 'vt');
             current = book;
             loanNote = null;
             renderDetailHead(current);
@@ -1775,6 +2182,7 @@
             $('rName').value = user ? user.username : '';
             $('rMsg').textContent = ''; $('rMsg').className = 'msg';
             $('dReviews').scrollTop = 0;
+            renderHero(current, mode);
             if (!detail.open) detail.showModal();
             detail.scrollTop = 0;
             loadReviews(current.id);
@@ -1795,8 +2203,11 @@
             }).catch(function () {});
         }
 
-        $('dClose').addEventListener('click', function () { detail.close(); });
-        detail.addEventListener('click', function (e) { if (e.target === detail) detail.close(); });
+        $('dClose').addEventListener('click', closeDetail);
+        detail.addEventListener('click', function (e) { if (e.target === detail) closeDetail(); });
+        detail.addEventListener('cancel', function (e) { // the Esc key
+            if (canTransition && animated()) { e.preventDefault(); closeDetail(); }
+        });
         detail.addEventListener('close', function () {
             current = null;
             playFlash();
