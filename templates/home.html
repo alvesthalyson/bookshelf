@@ -382,6 +382,15 @@
             cursor: pointer;
         }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .shelf.plain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px 0; }
+        .shelf.plain-list { display: flex; flex-direction: column; align-items: flex-start; gap: 15px; padding: 20px 0; }
+        .info-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; width: 100%; }
+        .info-card h3 { margin: 0; font-family: var(--display); }
+        .info-card p { margin: 4px 0 0; font-size: 0.9rem; }
+        .au-card { display: flex; align-items: center; gap: 15px; }
+        .au-avatar { flex: none; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; font: 800 24px var(--display); }
+        .rev-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .rev-text { font-size: 1rem !important; line-height: 1.6; margin-top: 10px !important; overflow-wrap: anywhere; }
         a.btn { display: inline-block; text-decoration: none; line-height: normal; }
         .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 500; }
         .btn.ghost:hover:not(:disabled) { border-color: var(--accent); }
@@ -737,7 +746,7 @@
                 <span class="who" id="whoName" hidden></span>
                 <a class="btn ghost small" href="/books/" data-i18n="nav_books">Books</a>
                 <a class="btn ghost small" href="/authors/" data-i18n="nav_authors">Authors</a>
-                <a class="btn ghost small" href="/reviews/">Reviews</a>
+                <a class="btn ghost small" href="/reviews/" data-i18n="nav_reviews">Reviews</a>
                 <button class="btn ghost small" id="loansBtn" type="button" hidden data-i18n="my_loans">My loans</button>
                 <button class="btn ghost small" id="staffBtn" type="button" hidden data-i18n="staff_btn">Librarian</button>
                 <button class="btn ghost small" id="authBtn" type="button">Log in</button>
@@ -1133,7 +1142,7 @@
                 comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
                 username: 'Username', password: 'Password',
                 theme_dark: 'Dark theme', theme_light: 'Light theme',
-                nav_books: 'Books', nav_authors: 'Authors', login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
+                nav_reviews: 'Reviews', unknown_country: 'Unknown country', born: 'Born {year}', au_books_one: '{n} book', au_books_many: '{n} books', authors_found_one: '{n} author', authors_found_many: '{n} authors', reviews_found_one: '{n} review', reviews_found_many: '{n} reviews', review_by: 'by {name} on {date}', load_more: 'Load more', page_fail: 'Could not load this page', nav_books: 'Books', nav_authors: 'Authors', login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
                 no_reviews: 'No reviews yet', rating_text: '{n} out of 5',
                 top_by: 'by {name}', top_open: 'Open {title}', top_reviews_one: '{n} from {count} review', top_reviews_many: '{n} from {count} reviews',
                 card_label: '{title} by {author}', card_with_status: '{base}, {status}',
@@ -1248,7 +1257,7 @@
                 comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
                 username: 'ユーザー名', password: 'パスワード',
                 theme_dark: 'ダークテーマ', theme_light: 'ライトテーマ',
-                nav_books: '本一覧', nav_authors: '著者一覧', login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
+                nav_reviews: 'レビュー', unknown_country: '国不明', born: '{year}年生まれ', au_books_one: '{n}冊', au_books_many: '{n}冊', authors_found_one: '{n}人の著者', authors_found_many: '{n}人の著者', reviews_found_one: '{n}件のレビュー', reviews_found_many: '{n}件のレビュー', review_by: '{name} さん・{date}', load_more: 'もっと見る', page_fail: 'このページを読み込めませんでした', nav_books: '本一覧', nav_authors: '著者一覧', login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
                 no_reviews: 'レビューなし', rating_text: '5点中{n}点',
                 top_by: '{name} 著', top_open: '{title}を開く', top_reviews_one: '{n}（レビュー{count}件）', top_reviews_many: '{n}（レビュー{count}件）',
                 card_label: '{title}（{author} 著）', card_with_status: '{base}、{status}',
@@ -1363,7 +1372,7 @@
                 comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
                 username: 'Usuário', password: 'Senha',
                 theme_dark: 'Tema escuro', theme_light: 'Tema claro',
-                nav_books: 'Livros', nav_authors: 'Autores', login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
+                nav_reviews: 'Resenhas', unknown_country: 'País desconhecido', born: 'Nasceu em {year}', au_books_one: '{n} livro', au_books_many: '{n} livros', authors_found_one: '{n} autor', authors_found_many: '{n} autores', reviews_found_one: '{n} resenha', reviews_found_many: '{n} resenhas', review_by: 'por {name} em {date}', load_more: 'Carregar mais', page_fail: 'Não foi possível carregar esta página', nav_books: 'Livros', nav_authors: 'Autores', login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
                 no_reviews: 'Sem resenhas', rating_text: '{n} de 5',
                 top_by: 'de {name}', top_open: 'Abrir {title}', top_reviews_one: '{n} em {count} resenha', top_reviews_many: '{n} em {count} resenhas',
                 card_label: '{title}, de {author}', card_with_status: '{base}, {status}',
@@ -3064,6 +3073,8 @@
             }
             if (loansDlg.open) { renderLoansPanel(); loadLoanHistory(); }
             if (staffDlg.open) { stNote('', ''); renderStaff(); isbnNote('', ''); }
+            if (pageMode === 'authors') loadAuthorsPage();
+            if (pageMode === 'reviews') loadReviewsPage();
         }
         $('langSel').addEventListener('change', function (e) { setLang(e.target.value); });
 
@@ -3111,80 +3122,79 @@
             document.getElementById('installBtn').hidden = true;
         });
 
-                /* ---------- Páginas dedicadas (Authors & Reviews) ---------- */
-        async function loadAuthorsPage() {
-            const response = await fetch('/api/authors/');
-            const data = await response.json();
-            const authors = data.results || data;
-            const shelf = document.getElementById('shelf');
-            shelf.style.display = 'grid';
-            shelf.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
-            shelf.style.gap = '20px';
-            shelf.style.padding = '20px 0';
-            shelf.innerHTML = authors.map(a => `
-                <div style="background: var(--surface); padding: 20px; border-radius: 8px; border: 1px solid var(--line); display: flex; align-items: center; gap: 15px;">
-                    <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; font-size: 24px; font-family: var(--display); font-weight: 800;">
-                        ${a.name.charAt(0)}
-                    </div>
-                    <div>
-                        <h3 style="margin: 0; font-family: var(--display);">${a.name}</h3>
-                        <p style="margin: 4px 0; color: var(--muted); font-size: 0.9rem;">
-                            ${a.country || 'Unknown country'} ${a.birth_year ? '· Born ' + a.birth_year : ''}
-                        </p>
-                    </div>
-                </div>
-            `).join('');
+        /* ---------- dedicated pages: Authors and Reviews ---------- */
+
+        // Every page of a list, following "next" (the API sends 12 at a time unless page_size is given).
+        function fetchAll(path, into) {
+            return api(path).then(function (data) {
+                into = into.concat(data.results);
+                if (!data.next) return into;
+                var next = new URL(data.next, location.href);
+                return fetchAll(next.pathname + next.search, into);
+            });
         }
 
-                async function loadReviewsPage() {
-            // Limpa o texto de "Loading books" da tela
-            document.getElementById('count').textContent = 'Loading reviews...';
-            
-            try {
-                const response = await fetch('/api/reviews/');
-                const data = await response.json();
-                const reviews = data.results || data;
-                const shelf = document.getElementById('shelf');
-                
-                // Limpa o texto de loading
-                document.getElementById('count').textContent = reviews.length + ' reviews found';
+        function pageFailed() {
+            shelf.setAttribute('aria-busy', 'false');
+            shelf.replaceChildren();
+            $('count').textContent = t('page_fail');
+        }
 
-                shelf.style.display = 'flex';
-                shelf.style.flexDirection = 'column';
-                shelf.style.gap = '15px';
-                shelf.style.padding = '20px 0';
-                
-                if (reviews.length === 0) {
-                    shelf.innerHTML = '<p class="muted">No reviews yet.</p>';
-                    return;
+        function loadAuthorsPage() {
+            $('count').textContent = t('loading');
+            return fetchAll('/api/authors/?page_size=48', []).then(function (authors) {
+                $('count').textContent = tn('authors_found', authors.length);
+                shelf.setAttribute('aria-busy', 'false');
+                shelf.classList.add('plain-grid');
+                shelf.replaceChildren.apply(shelf, authors.map(function (a) {
+                    var meta = [a.country || t('unknown_country'), a.birth_year ? t('born', { year: a.birth_year }) : ''].filter(Boolean).join(' · ');
+                    return el('div', { class: 'info-card au-card' },
+                        el('div', { class: 'au-avatar', 'aria-hidden': 'true', text: a.name.charAt(0).toUpperCase() }),
+                        el('div', null,
+                            el('h3', { text: a.name }),
+                            el('p', { class: 'muted', text: meta }),
+                            el('p', { class: 'muted', text: tn('au_books', a.book_count != null ? a.book_count : (a.books || []).length) })));
+                }));
+            }).catch(pageFailed);
+        }
+
+        function loadReviewsPage() {
+            var shown = [];
+            $('count').textContent = t('loading');
+
+            function draw(data) {
+                shown = shown.concat(data.results);
+                shelf.setAttribute('aria-busy', 'false');
+                shelf.classList.add('plain-list');
+                $('count').textContent = tn('reviews_found', data.count);
+                var cards = shown.map(function (r) {
+                    return el('article', { class: 'info-card rev-card' },
+                        el('div', { class: 'rev-head' },
+                            el('h3', { text: r.book_title || ('#' + r.book) }),
+                            el('span', { class: 'stars', role: 'img', 'aria-label': t('rating_text', { n: r.rating }), text: stars(r.rating) })),
+                        el('p', { class: 'muted', text: t('review_by', { name: r.reviewer_name, date: new Date(r.created_at).toLocaleDateString(LOCALES[lang]) }) }),
+                        r.comment ? el('p', { class: 'rev-text', text: r.comment }) : null);
+                });
+                if (!shown.length) cards = [el('p', { class: 'muted', text: t('no_reviews') })];
+                if (data.next) {
+                    var more = el('button', { class: 'btn ghost', type: 'button', text: t('load_more') });
+                    more.addEventListener('click', function () {
+                        more.disabled = true;
+                        var next = new URL(data.next, location.href);
+                        api(next.pathname + next.search).then(draw).catch(function () { more.disabled = false; });
+                    });
+                    cards.push(more);
                 }
-
-                shelf.innerHTML = reviews.map(r => `
-                    <div style="background: var(--surface); padding: 20px; border-radius: 8px; border: 1px solid var(--line);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <h3 style="margin: 0; font-family: var(--display);">${r.book_title || 'Book #' + r.book}</h3>
-                            <span style="color: var(--star); font-size: 18px;">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
-                        </div>
-                        <p style="color: var(--muted); font-size: 0.9rem; margin: 0 0 10px;">
-                            by <strong style="color: var(--ink);">${r.reviewer_name}</strong> on ${new Date(r.created_at).toLocaleDateString()}
-                        </p>
-                        ${r.comment ? `<p style="line-height: 1.6; margin: 0;">${r.comment}</p>` : ''}
-                    </div>
-                `).join('');
-            } catch (error) {
-                document.getElementById('count').textContent = 'Error loading reviews.';
-                console.error(error);
+                shelf.replaceChildren.apply(shelf, cards);
             }
+            return api('/api/reviews/?ordering=-created_at&page_size=24').then(draw).catch(pageFailed);
         }
 
                 /* ---------- start ---------- */
         applyStaticI18n();
         
-        // Só mostra "Loading books" se não for a página de reviews
-        if (pageMode !== 'reviews') {
-            document.getElementById('count').textContent = t('loading_books');
-        }
-        
+        if (pageMode === 'home' || pageMode === 'books') $('count').textContent = t('loading_books');
+
         readUrl();
         syncControls();
         loadSession();
