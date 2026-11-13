@@ -749,6 +749,7 @@
                 <a class="btn ghost small" href="/reviews/" data-i18n="nav_reviews">Reviews</a>
                 <button class="btn ghost small" id="loansBtn" type="button" hidden data-i18n="my_loans">My loans</button>
                 <button class="btn ghost small" id="staffBtn" type="button" hidden data-i18n="staff_btn">Librarian</button>
+                <button class="btn small" id="signupBtn" type="button" hidden data-i18n="signup">Sign up</button>
                 <button class="btn ghost small" id="authBtn" type="button">Log in</button>
                 <select class="lang-select" id="langSel" data-i18n-aria-label="lang_label" aria-label="Language">
                     <option value="ja" lang="ja">日本語</option>
@@ -1142,7 +1143,7 @@
                 comment_opt: 'Comment (optional)', post_review: 'Post review', star_one: '1 star', star_many: '{n} stars',
                 username: 'Username', password: 'Password',
                 theme_dark: 'Dark theme', theme_light: 'Light theme',
-                nav_reviews: 'Reviews', unknown_country: 'Unknown country', born: 'Born {year}', au_books_one: '{n} book', au_books_many: '{n} books', authors_found_one: '{n} author', authors_found_many: '{n} authors', reviews_found_one: '{n} review', reviews_found_many: '{n} reviews', review_by: 'by {name} on {date}', load_more: 'Load more', page_fail: 'Could not load this page', nav_books: 'Books', nav_authors: 'Authors', login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
+                signup: 'Sign up', nav_reviews: 'Reviews', unknown_country: 'Unknown country', born: 'Born {year}', au_books_one: '{n} book', au_books_many: '{n} books', authors_found_one: '{n} author', authors_found_many: '{n} authors', reviews_found_one: '{n} review', reviews_found_many: '{n} reviews', review_by: 'by {name} on {date}', load_more: 'Load more', page_fail: 'Could not load this page', nav_books: 'Books', nav_authors: 'Authors', login: 'Log in', logout: 'Log out', signed_in: 'Signed in as {name}', my_loans: 'My loans',
                 no_reviews: 'No reviews yet', rating_text: '{n} out of 5',
                 top_by: 'by {name}', top_open: 'Open {title}', top_reviews_one: '{n} from {count} review', top_reviews_many: '{n} from {count} reviews',
                 card_label: '{title} by {author}', card_with_status: '{base}, {status}',
@@ -1257,7 +1258,7 @@
                 comment_opt: 'コメント（任意）', post_review: 'レビューを投稿', star_one: '星1つ', star_many: '星{n}つ',
                 username: 'ユーザー名', password: 'パスワード',
                 theme_dark: 'ダークテーマ', theme_light: 'ライトテーマ',
-                nav_reviews: 'レビュー', unknown_country: '国不明', born: '{year}年生まれ', au_books_one: '{n}冊', au_books_many: '{n}冊', authors_found_one: '{n}人の著者', authors_found_many: '{n}人の著者', reviews_found_one: '{n}件のレビュー', reviews_found_many: '{n}件のレビュー', review_by: '{name} さん・{date}', load_more: 'もっと見る', page_fail: 'このページを読み込めませんでした', nav_books: '本一覧', nav_authors: '著者一覧', login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
+                signup: '新規登録', nav_reviews: 'レビュー', unknown_country: '国不明', born: '{year}年生まれ', au_books_one: '{n}冊', au_books_many: '{n}冊', authors_found_one: '{n}人の著者', authors_found_many: '{n}人の著者', reviews_found_one: '{n}件のレビュー', reviews_found_many: '{n}件のレビュー', review_by: '{name} さん・{date}', load_more: 'もっと見る', page_fail: 'このページを読み込めませんでした', nav_books: '本一覧', nav_authors: '著者一覧', login: 'ログイン', logout: 'ログアウト', signed_in: '{name} さんでログイン中', my_loans: 'マイ貸出',
                 no_reviews: 'レビューなし', rating_text: '5点中{n}点',
                 top_by: '{name} 著', top_open: '{title}を開く', top_reviews_one: '{n}（レビュー{count}件）', top_reviews_many: '{n}（レビュー{count}件）',
                 card_label: '{title}（{author} 著）', card_with_status: '{base}、{status}',
@@ -1372,7 +1373,7 @@
                 comment_opt: 'Comentário (opcional)', post_review: 'Publicar resenha', star_one: '1 estrela', star_many: '{n} estrelas',
                 username: 'Usuário', password: 'Senha',
                 theme_dark: 'Tema escuro', theme_light: 'Tema claro',
-                nav_reviews: 'Resenhas', unknown_country: 'País desconhecido', born: 'Nasceu em {year}', au_books_one: '{n} livro', au_books_many: '{n} livros', authors_found_one: '{n} autor', authors_found_many: '{n} autores', reviews_found_one: '{n} resenha', reviews_found_many: '{n} resenhas', review_by: 'por {name} em {date}', load_more: 'Carregar mais', page_fail: 'Não foi possível carregar esta página', nav_books: 'Livros', nav_authors: 'Autores', login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
+                signup: 'Cadastrar-se', nav_reviews: 'Resenhas', unknown_country: 'País desconhecido', born: 'Nasceu em {year}', au_books_one: '{n} livro', au_books_many: '{n} livros', authors_found_one: '{n} autor', authors_found_many: '{n} autores', reviews_found_one: '{n} resenha', reviews_found_many: '{n} resenhas', review_by: 'por {name} em {date}', load_more: 'Carregar mais', page_fail: 'Não foi possível carregar esta página', nav_books: 'Livros', nav_authors: 'Autores', login: 'Entrar', logout: 'Sair', signed_in: 'Conectado como {name}', my_loans: 'Meus empréstimos',
                 no_reviews: 'Sem resenhas', rating_text: '{n} de 5',
                 top_by: 'de {name}', top_open: 'Abrir {title}', top_reviews_one: '{n} em {count} resenha', top_reviews_many: '{n} em {count} resenhas',
                 card_label: '{title}, de {author}', card_with_status: '{base}, {status}',
@@ -2287,6 +2288,7 @@
             $('favField').hidden = !user;
             $('staffBtn').hidden = !(user && user.is_staff);
             $('authBtn').textContent = user ? t('logout') : t('login');
+            $('signupBtn').hidden = !!user;
         }
 
         function setAuthMode(mode) {
@@ -2326,6 +2328,7 @@
             return api('/api/auth/me/').then(applySession).catch(function () { renderAccount(); });
         }
 
+        $('signupBtn').addEventListener('click', function () { openAuth('register'); });
         $('authBtn').addEventListener('click', function () {
             if (!user) { openAuth('login'); return; }
             send('POST', '/api/auth/logout/').then(function (session) {
